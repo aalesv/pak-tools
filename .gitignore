@@ -1,0 +1,7 @@
+.vscode
+*.pak
+*.txt
+*.mot
+*.bin
+*.exe
+!srec2bin.exe
