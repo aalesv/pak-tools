@@ -6,7 +6,7 @@ Incomplete support. Can extract, decrypt, convert to encrypted binary without pr
 
 * Find a key by Cal ID, by ECU part number or by PAK:
 
-`get_pak_key.py -i <YOUR_CAL_ID>`
+`get_pak_key.py -c <YOUR_CAL_ID>`
 
 `get_pak_key.py -p <PART_NUMBER>`
 
@@ -14,7 +14,7 @@ Incomplete support. Can extract, decrypt, convert to encrypted binary without pr
 
 * Unpack PAK:
 
-`unpak.py -i <PAK_FILE_NAME>`
+`unpak.py -i <PAK_FILE_NAME> -u`
 
 * Decypt
 
