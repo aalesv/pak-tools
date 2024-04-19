@@ -8,7 +8,7 @@
 #define THROW_IF_FALSE(winbool, where) if (winbool == FALSE) \
         throw std::runtime_error(std::format(where " failed with error {}", GetLastError()))
 
-const char *VERSION = "2024.0321";
+const char *VERSION = "2024.0419";
 
 void
 usage()
@@ -65,7 +65,7 @@ main( int argc, char* argv[])
         //How much did we read
         DWORD len = inFile.gcount();
         //Is this final pass?
-        final = (len < 1024);
+        final = (len < buffer.size());
         r = CryptDecrypt(*phKey, 0, final, 0, (BYTE *)&buffer[0], &len);
         THROW_IF_FALSE((r || final), "CryptDecrypt"); 
         outFile.write((const char*)&buffer[0], len);
