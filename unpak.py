@@ -41,7 +41,7 @@ def num_count(count):
     for i in range (start, start+count):
         yield i
 
-VERSION=2024.0419
+VERSION=2024.0419-1
 
 parser = argparse.ArgumentParser(
     formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -59,18 +59,6 @@ parserGroupOptions = parser.add_argument(
     action='store_true'
 )
 parserGroupOptions = parser.add_argument(
-    '--unpack-header',
-    help='Unpack header',
-    action='store_true'
-)
-parserGroupOptions = parser.add_argument(
-    '--header-name',
-    metavar='<filename>',
-    help='Unpacked header file name',
-    default='header.txt'
-)
-
-parserGroupOptions = parser.add_argument(
     '-d', '--dest-dir',
     metavar='<directory>',
     help='Destination directory',
@@ -84,7 +72,7 @@ parserGroupOptions = parser.add_argument(
 
 args = parser.parse_args()
 UNPACK = args.unpack
-UNPACK_HEADER = args.unpack_header
+HEADER_FILE_NAME = 'header.csv'
 
 pak_file_name = args.input
 pak_stream = ConstBitStream(filename=pak_file_name)
@@ -101,9 +89,9 @@ if UNPACK and not os.path.exists(pak_dir):
 #Unknown structure
 unk_struct_len = pak_stream.read('uintle:16')
 
-if UNPACK_HEADER:
-    header_file_name = rf'{pak_dir}\{args.header_name}'
-    print(f'Saving header to {header_file_name}')
+if UNPACK:
+    header_file_name = rf'{pak_dir}\{HEADER_FILE_NAME}'
+    print(f'Saving header to {header_file_name}\n')
     save_file(pak_file_name, int(pak_stream.bitpos/8), unk_struct_len, header_file_name)
 
 pak_stream.bitpos += unk_struct_len*8

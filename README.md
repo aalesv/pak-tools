@@ -20,6 +20,8 @@ Incomplete support. Can extract, decrypt, convert to encrypted binary without pr
 
 `rc2decode.exe <unpacked_file> <key> <decrypted_file>`
 
+To decrypt `header.csv` use key `CsvKey`
+
 At this step decrypted file should contain data in Mototrola S-Record format
 
 * Create BIN file
