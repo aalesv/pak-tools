@@ -1,3 +1,6 @@
+// This is an independent project of an individual developer. Dear PVS-Studio, please check it.
+
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 #include <iostream>
 #include <format>
 #include <fstream>
@@ -8,7 +11,7 @@
 #define THROW_IF_FALSE(winbool, where) if (winbool == FALSE) \
         throw std::runtime_error(std::format(where " failed with error {}", GetLastError()))
 
-const char *VERSION = "2024.0419";
+const char *VERSION = "2024.0423";
 
 void
 usage()
@@ -57,7 +60,11 @@ main( int argc, char* argv[])
 
     std::vector<BYTE> buffer (1024, 0);  
     std::ifstream inFile(file_in, std::ifstream::binary);
+    if (!inFile)
+       throw std::runtime_error(std::format("Error opening file {}", file_in));
     std::ofstream outFile(file_out, std::ios::out | std::ios::binary);
+    if (!outFile)
+       throw std::runtime_error(std::format("Error opening file {}", file_out));
     WINBOOL final;
     while (!inFile.eof())
     {
@@ -70,6 +77,6 @@ main( int argc, char* argv[])
         THROW_IF_FALSE((r || final), "CryptDecrypt"); 
         outFile.write((const char*)&buffer[0], len);
     }
-    std::cout << std::format("Writed to {}", file_out) << std::endl;
+    std::cout << std::format("Wrote to {}", file_out) << std::endl;
     return 0;
 }

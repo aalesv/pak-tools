@@ -26,8 +26,20 @@ At this step decrypted file should contain data in Mototrola S-Record format
 
 * Create BIN file
 
-`srec2bin.exe <new_bin_fil_name> -M <size_in_mbytes> -s <decrypted_file>`
+`srec2bin.exe <new_bin_file_name> -M <size_in_mbytes> -s <decrypted_file>`
 
-At this step you'll get `new_bin_fil_name` encrypted with kind a swap bit cipher.
+At this step you'll get `new_bin_file_name` encrypted with kind a swap bit cipher.
 
-It cannot be decrypted at the moment.
+* Decrypt it
+
+`crypt.exe <infile> <key_word0> <key_word1> <key_word2> <key_word3> [<outfile>]`
+
+Some known decryption keys (place words in reverse order to encrypt):
+
+ECU Denso CAN key: `0x92A0 0xE282 0x32C0 0xC85B`
+
+ECU Denso key: `0x6E86 0xF513 0xCE22 0x7856`
+
+ECU Hitachi key: `0x14CA 0x77F4 0x973C 0xF50E`
+
+TCU Hitachi key: `0x6587 0x4492 0xa8b4 0x7bf2`
