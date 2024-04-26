@@ -1,6 +1,8 @@
 // This is an independent project of an individual developer. Dear PVS-Studio, please check it.
 
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
+//This program is made in educational purposes.
+//Using in another purposes is prohibited!
 #include <iostream>
 #include <vector>
 #include <cstdint>
@@ -11,32 +13,13 @@
 #include <conio.h>
 #include "crypt_utils.h"
 
-//Return true if both arrays are indentical
-static inline bool compare(const QByteArray &first, const QByteArray &second)
-{
-    //if (first.size() != second.size())
-    //    throw std::runtime_error("Can't compare arrays of different size");
-    
-    bool res=true;
-    for (int i=0; i<first.size(); i++)
-    //for (int i=0; i<1; i++)
-    {
-        res = (first[i] == second[i]) && res;
-        if (! res) break;
-    }
-    //#define CMP(a,b,i) a[i]==b[i]
-    //res = (first[3] == second[3]) && (first[2] == second[2]) && (first[1] == second[1]) && (first[0] == second[0]);
-
-    //res = CMP(first,second,3) && CMP(first,second,2) && CMP(first,second,1) &&CMP(first,second,0);
-
-    return res;
-}
-
 #define HEX(x) std::format("0x{:04X}", x)
 #define MAX 0xffff
 #define FOR(n) for(uint32_t n=0; n<=MAX; n++)
 #define WRITELN(i) std::cout << std::format("{} ",i) << std::endl;
 #define WRITE(i) std::cout << std::format("{} ",i)
+
+const char *VERSION = "2024.0426";
 
 uint16_t key_to_generate_index[4]={0};
 
@@ -60,7 +43,6 @@ void sigint_handler(int param)
 //Print usage info
 void usage ()
 {
-    std::cout << "FlashWrite ROM encryption bruteforce" << std::endl;
     std::cout << "Usage:" << std:: endl;
     std::cout << "crypt_bf.exe [key_word0_start key_word1_start key_word2_start key_word3_start [key_word0_end key_word1_end key_word2_end key_word3_end]]" << std::endl;
 }
@@ -71,13 +53,13 @@ int main(int argc, char *argv[])
     //Clean unencrypted bytes
     const QByteArray clean_buf = {0xff, 0xff, 0xff, 0xff};
     //Encrypted bytes
-    const QByteArray encr_buf = {0x96, 0x55, 0x4f, 0x6e};
+    const QByteArray encr_buf = {0x68, 0xFC, 0x4E, 0x1C};
 
     //Set this to discard false positives
     //Clean unencrypted bytes
-    const QByteArray clean_test_buf = {0xFF, 0xFF, 0x20, 0x4C};
+    const QByteArray clean_test_buf = {0xFF, 0x00, 0x03, 0x00};
     //Encrypted bytes
-    const QByteArray encr_test_buf  = {0xFE, 0x77, 0x09, 0x27};
+    const QByteArray encr_test_buf  = {0x85, 0x6F, 0x15, 0x7C};
     QByteArray r;
     uint32_t key_word0_start = 0,
              key_word1_start = 0,
@@ -91,18 +73,20 @@ int main(int argc, char *argv[])
 
     //Set start key
     std::function<void()> set_key_start = [&](){
-        key_word0_start = stoi(argv[1]);
-        key_word1_start = stoi(argv[2]);
-        key_word2_start = stoi(argv[3]);
-        key_word3_start = stoi(argv[4]);
+        key_word0_start = _stoi(argv[1]);
+        key_word1_start = _stoi(argv[2]);
+        key_word2_start = _stoi(argv[3]);
+        key_word3_start = _stoi(argv[4]);
     };
     //set end key
     std::function<void()> set_key_end = [&](){
-        key_word0_end = stoi(argv[5]);
-        key_word1_end = stoi(argv[6]);
-        key_word2_end = stoi(argv[7]);
-        key_word3_end = stoi(argv[8]);
+        key_word0_end = _stoi(argv[5]);
+        key_word1_end = _stoi(argv[6]);
+        key_word2_end = _stoi(argv[7]);
+        key_word3_end = _stoi(argv[8]);
     };
+
+    std::cout << std::format("FlashWrite ROM encryption bruteforce utility v{}", VERSION) << std::endl;
 
     if (argc == 5 )
     {

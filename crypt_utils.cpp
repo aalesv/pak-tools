@@ -118,7 +118,7 @@ QByteArray subaru_denso_decrypt_32bit_payload(const QByteArray &buf)
     return decrypted;
 }
 
-//Encrypt pyaload wrapper
+//Encrypt payload wrapper
 QByteArray subaru_denso_decrypt_32bit_payload(const QByteArray &buf, uint16_t *key_to_generate_index)
 {
     QByteArray decrypted;
@@ -137,7 +137,7 @@ QByteArray subaru_denso_decrypt_32bit_payload(const QByteArray &buf, uint16_t *k
 
 //Convert from string to integer
 //If string starts with '0x', assume hex, else - dec
-int stoi(std::string s)
+int _stoi(std::string s)
 {
     transform(s.begin(), s.end(), s.begin(), ::tolower);
     int radix = s.starts_with("0x") ? 16 : 10;

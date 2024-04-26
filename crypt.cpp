@@ -32,10 +32,10 @@ int main( int argc, char* argv[])
         return 1;
     }
     in_file_name = argv[1];
-    crypt_key[0] = stoi(argv[2]);
-    crypt_key[1] = stoi(argv[3]);
-    crypt_key[2] = stoi(argv[4]);
-    crypt_key[3] = stoi(argv[5]);
+    crypt_key[0] = _stoi(argv[2]);
+    crypt_key[1] = _stoi(argv[3]);
+    crypt_key[2] = _stoi(argv[4]);
+    crypt_key[3] = _stoi(argv[5]);
     if (argc == 7)
     {
         out_file_name = argv[6];
