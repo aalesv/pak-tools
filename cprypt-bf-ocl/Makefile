@@ -12,7 +12,11 @@ INCLUDEDIR=-I $(GCCROOT)\i686-w64-mingw32\include -I $(OCLROOT)\include
 CRYPT_BF_OCL_SOURCES=crypt_bf_ocl.cpp
 CRYPT_BF_OCL_EXECUTABLE=crypt_bf_ocl.exe
 
+GPU_SETTINGS_DETECT_SOURCES=gpu-settings-detect.cpp
+GPU_SETTINGS_DETECT_EXECUTABLE=gpu-settings-detect.exe
+
 ALL_EXECUTABLE=$(CRYPT_BF_OCL_EXECUTABLE) \
+				$(GPU_SETTINGS_DETECT_EXECUTABLE) \
 				devices.exe \
 				platforms.exe \
 				info.exe
@@ -21,6 +25,9 @@ rebuild: clean all
 
 $(CRYPT_BF_OCL_EXECUTABLE): $(CRYPT_BF_OCL_SOURCES)
 	$(CXX) $(CRYPT_BF_OCL_SOURCES) $(CCFLAGS) $(INCLUDEDIR) $(LDFLAGS) -o $@
+
+$(GPU_SETTINGS_DETECT_EXECUTABLE): $(GPU_SETTINGS_DETECT_SOURCES)
+	$(CXX) $(GPU_SETTINGS_DETECT_SOURCES) $(CCFLAGS) $(INCLUDEDIR) $(LDFLAGS) -o $@
 
 devices.exe: devices.c
 	$(CXX) $< $(CCFLAGS) $(INCLUDEDIR) $(LDFLAGS) -o $@
