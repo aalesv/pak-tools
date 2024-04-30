@@ -204,6 +204,19 @@ if (argc == 2 )
     set_options(cfg_file);
     std::string kernel_source_filename = OCL_KERNEL_SOURCES;
 
+    std::cout << std::format("Start key: {} {} {} {}",
+                    HEX(START_K0),
+                    0,
+                    0,
+                    0)
+            << std::endl;
+    std::cout << std::format("End key: {} {} {} {}",
+                    HEX(END_K0),
+                    0,
+                    0,
+                    0)
+            << std::endl;
+
     try
     {
         //Array of found keys
