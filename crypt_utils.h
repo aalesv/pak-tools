@@ -6,6 +6,7 @@
 #define FOR(n) for(uint32_t n=0; n<=MAX; n++)
 #define WRITELN(i) std::cout << std::format("{} ",i) << std::endl;
 #define WRITE(i) std::cout << std::format("{} ",i)
+#define DEBUG_PRINT_HEX(VAR) printf(#VAR "=0x%.04x\n", VAR)
 
 //This is needed to brute force fast
 //Right way is to use vector

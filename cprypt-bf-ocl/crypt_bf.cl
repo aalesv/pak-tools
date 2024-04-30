@@ -7,16 +7,16 @@ typedef uchar QByteArray[ARRAY_LEN];
 
 //Set this for bruteforce. 4 bytes give max speed but many false positives.
 //Clean unencrypted bytes
-__private const QByteArray clean_buf = {0xff, 0xff, 0xff, 0xff};
+__constant const QByteArray clean_buf = {0xff, 0xff, 0xff, 0xff};
 //Encrypted bytes
-__private const QByteArray encr_buf = {0x68, 0xFC, 0x4E, 0x1C};
+__constant const QByteArray encr_buf = {0x68, 0xFC, 0x4E, 0x1C};
 
 //Set this to discard false positives
 //Clean unencrypted bytes
-__private const QByteArray clean_test_buf = {0xFF, 0x00, 0x03, 0x00};
+__constant const QByteArray clean_test_buf = {0xFF, 0x00, 0x03, 0x00};
 //Encrypted bytes
-__private const QByteArray encr_test_buf  = {0x85, 0x6F, 0x15, 0x7C};
-__private const uchar mask_00_00_FF_FF[ARRAY_LEN] = {0x0, 0x0, 0xFF, 0xFF};
+__constant const QByteArray encr_test_buf  = {0x85, 0x6F, 0x15, 0x7C};
+__constant const uchar mask_00_00_FF_FF[ARRAY_LEN] = {0x0, 0x0, 0xFF, 0xFF};
 
 //Return true if both arrays are indentical
 static inline int compare(const uchar *first, const uchar *second)
@@ -49,7 +49,7 @@ static inline int compare_mask( const uchar *first,
     return res;
 }
 
-__private const uchar index_transformation[]={
+__constant const uchar index_transformation[]={
     0x5, 0x6, 0x7, 0x1, 0x9, 0xC, 0xD, 0x8,
     0xA, 0xD, 0x2, 0xB, 0xF, 0x4, 0x0, 0x3,
     0xB, 0x4, 0x6, 0x0, 0xF, 0x2, 0xD, 0x9,
@@ -63,18 +63,16 @@ void subaru_denso_calculate_32bit_payload(const uchar *buf,
                                             const uchar *index_transformation,
                                             uchar *encrypted)
 {
-    //QByteArray encrypted;
     uint data_to_encrypt32, index;
     ushort word_to_generate_index, word_to_be_encrypted, encryption_key;
     int ki, n;
 
     for (uint i = 0; i < ARRAY_LEN; i += 4) {
-        ushort buf_i_0 = buf[i];
-        ushort buf_i_1 = buf[i+1];
-        ushort buf_i_2 = buf[i+2];
-        ushort buf_i_3 = buf[i+3];
+        uchar buf_i_0 = buf[i];
+        uchar buf_i_1 = buf[i+1];
+        uchar buf_i_2 = buf[i+2];
+        uchar buf_i_3 = buf[i+3];
         data_to_encrypt32 = ((buf_i_0 << 24) & 0xFF000000) | ((buf_i_1 << 16) & 0xFF0000) | ((buf_i_2 << 8) & 0xFF00) | (buf_i_3 & 0xFF);
-
         for (ki = 0; ki < 4; ki++) {
 
             word_to_generate_index = data_to_encrypt32;
@@ -99,14 +97,12 @@ void subaru_denso_calculate_32bit_payload(const uchar *buf,
         encrypted[3]=(data_to_encrypt32 & 0xFF);
 
     }
-    return encrypted;
 }
 
 //Decrypt payload wrapper
-//QByteArray* subaru_denso_decrypt_32bit_payload(const QByteArray *buf, ushort *key_to_generate_index)
-void subaru_denso_decrypt_32bit_payload(const ushort *buf,
+void subaru_denso_decrypt_32bit_payload(const uchar *buf,
                                         ushort *key_to_generate_index,
-                                        ushort *decrypted)
+                                        uchar *decrypted)
 {
     subaru_denso_calculate_32bit_payload(buf,
                                         key_to_generate_index,
@@ -124,27 +120,16 @@ __kernel void try_key_0(__global const ushort *keys_start,
 {
     uint index = get_global_id(0);
     ushort key0 = keys_start[index];
-    //key0 = 0x6587;
-    //printf("Kernel %d, key0=%d\n", index, key0);
-    //if (index == 1)
-    //    key_found[POS_KEY(index, 3)] = 0x100 + key0;
-    /*ushort key_to_generate_index[4] = {0x6587, 0x4492, 0xa8b4, 0x7bf2};
-    QByteArray decrypted = {0, 0, 0, 0};
-    subaru_denso_decrypt_32bit_payload(&encr_buf, &key_to_generate_index, decrypted);
-    PRINT_KEY(decrypted);
-    const uchar c[4] = {0xff, 0xff, 0xff, 0xff};
-    if (compare(&clean_buf, decrypted))
-        printf("Key found\n");
-    compare_mask(decrypted, &clean_buf, &mask_00_00_FF_FF);
-    return;*/
+    //Zeroize all values. I assume no one will use key to 0 0 0 0
+    key_found[POS_KEY(index, 0)]=1;
+    key_found[POS_KEY(index, 1)]=0;
+    key_found[POS_KEY(index, 2)]=0;
+    key_found[POS_KEY(index, 3)]=0;
     ushort key_to_generate_index[4];
     QByteArray decrypted = {0, 0, 0, 0};
-    //FOR(i1)
-    for (int i1=0x4490;i1<=0x4493;i1++)
+    FOR(i1)
     {
-        //printf("i1=%d\n",i1);
-        //FOR(i2)
-        for (int i2=0;i2<=MAX;i2++)        
+        FOR(i2)
         {
             key_to_generate_index[0]=key0;
             key_to_generate_index[1]=i1;
@@ -161,6 +146,7 @@ __kernel void try_key_0(__global const ushort *keys_start,
                                                 &key_to_generate_index,
                                                 decrypted);
                 if (compare_mask(decrypted, &clean_test_buf, &mask_00_00_FF_FF))
+                {
                     FOR (i3)
                     {
                         key_to_generate_index[3] = i3;
@@ -175,8 +161,6 @@ __kernel void try_key_0(__global const ushort *keys_start,
                                                     decrypted);
                             if (compare(decrypted, &clean_test_buf))
                             {
-                                //printf("Candidate key ");
-                                //PRINT_KEY(key_to_generate_index);
                                 key_found[POS_KEY(index, 0)]=key_to_generate_index[0];
                                 key_found[POS_KEY(index, 1)]=key_to_generate_index[1];
                                 key_found[POS_KEY(index, 2)]=key_to_generate_index[2];
@@ -185,10 +169,9 @@ __kernel void try_key_0(__global const ushort *keys_start,
                             }
                         }
                     }//i3
+                }
             }
-
         }//i2
-
     }//i1
 }
 
@@ -207,13 +190,14 @@ __kernel void try_key_1(__global const ushort *keys_0,
     ushort key_1_start  = keys_1_start[index];
     ushort key_1_end    = keys_1_end[index];
     ushort key_to_generate_index[4];
-    //DEBUG_PRINT_HEX(key_0);
-    //DEBUG_PRINT_HEX(key_1_start);
-    //DEBUG_PRINT_HEX(key_1_end);
+    //Zeroize all values. I assume no one will use key to 0 0 0 0
+    key_found[POS_KEY(index, 0)]=0;
+    key_found[POS_KEY(index, 1)]=0;
+    key_found[POS_KEY(index, 2)]=0;
+    key_found[POS_KEY(index, 3)]=0;
     QByteArray decrypted = {0, 0, 0, 0};
     for (int i1=key_1_start;i1<=key_1_end;i1++)
     {
-        //DEBUG_PRINT_HEX(i1);
         FOR(i2)
         {
             key_to_generate_index[0]=key_0;
@@ -231,6 +215,7 @@ __kernel void try_key_1(__global const ushort *keys_0,
                                                 &key_to_generate_index,
                                                 decrypted);
                 if (compare_mask(decrypted, &clean_test_buf, &mask_00_00_FF_FF))
+                {
                     FOR (i3)
                     {
                         key_to_generate_index[3] = i3;
@@ -255,6 +240,7 @@ __kernel void try_key_1(__global const ushort *keys_0,
                             }
                         }
                     }//i3
+                }
             }
         }//i2
     }//i1

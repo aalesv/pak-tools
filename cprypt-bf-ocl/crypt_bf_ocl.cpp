@@ -18,7 +18,132 @@
 #include <cstdint>
 #include <chrono>
 #include <thread>
+#include <map>
+#include <conio.h>
+#include <csignal>
 #include "crypt_bf_ocl.h"
+
+const char *VERSION = "2024.0430";
+
+//Convert from string to integer
+//If string starts with '0x', assume hex, else - dec
+int _stoi(std::string s)
+{
+    transform(s.begin(), s.end(), s.begin(), ::tolower);
+    int radix = s.starts_with("0x") ? 16 : 10;
+    return std::stoi(s, nullptr, radix);
+}
+
+int CURRENT_KEY;
+#define HEX(x) std::format("0x{:04X}", x)
+
+//Print current key.
+void print_current_key()
+{
+    int key = CURRENT_KEY;
+    std::cout << std::format("Current key is {} {} {} {}",
+                            HEX(key), 0, 0, 0)
+            << std::endl;
+}
+
+//SIGINT handler
+void sigint_handler(int param)
+{
+    print_current_key();
+    exit(1);
+}
+
+//Options
+static std::map<std::string, std::string> OPTIONS;
+//Config file default name
+static std::string cfg_file = "crypt_bf_mt.ini";
+//Start key high word
+static cl_ushort START_K0 = 0,
+                 //End key high word
+                 END_K0 = 0xFFFF;
+//Global size, total number of work-items
+static cl_uint  GLOBAL_WI,
+                //Local size, the number of work-items per work-group
+                LOCAL_WG;
+static int DEBUG_LEVEL=0;
+//OpenCL kernel sources file name
+static std::string OCL_KERNEL_SOURCES;
+
+//Parse config file
+std::map<std::string, std::string> parse_cfg(std::istream & cfgfile)
+{
+    int cfg_string_num = 0;
+    const int max_str_len = 256;
+    std::map<std::string, std::string> options;
+    for (std::string line; std::getline(cfgfile, line); )
+    {
+        std::istringstream iss(line);
+        std::string id, eq, val;
+        cfg_string_num++;
+
+        bool error = false;
+
+        if (!(iss >> id))
+        {
+            error = true;
+        }
+        //Skip comments
+        else if (id[0] == '#')
+        {
+            continue;
+        }
+        //Malformed string
+        else if (!(iss >> eq >> val) or eq != "=" or iss.get() != EOF)
+        {
+            error = true;
+        }
+        if (id.length() >= max_str_len or
+                val.length() >= max_str_len)
+        {
+            error = true;
+        }
+
+        if (error)
+        {
+            std::cerr << std::format("Cannot parse config file string {}, skipping", cfg_string_num) << std::endl;
+        }
+        else
+        {
+            options[id] = val;
+        }
+    }
+    return options;
+}
+
+//Convert from INI file string to integer variable
+//VAR_NAME = options["VAR_NAME"]
+//Throw exception with name of var
+#define CONFIG_STOI(s) try  { \
+                            s = _stoi(options[#s]); \
+                            } catch (...) { \
+                            std::cout<<"Can't convert value of "<<#s<<" to integer."<<std::endl; \
+                            exit(1);}
+//Set variables from INI file
+void set_options(std::string &cfgfile)
+{
+    std::filebuf fb;
+    std::map<std::string, std::string> options;
+    fb.open(cfgfile, std::ios::in);
+    if (fb.is_open())
+    {
+        std::istream is(&fb);
+        options = parse_cfg(is);
+    }
+    else
+        throw std::runtime_error((std::format("Cannot open file {}", cfgfile)));
+    fb.close();
+    CONFIG_STOI(START_K0);
+    CONFIG_STOI(END_K0);
+    CONFIG_STOI(GLOBAL_WI);
+    CONFIG_STOI(LOCAL_WG);
+    CONFIG_STOI(DEBUG_LEVEL);
+    OCL_KERNEL_SOURCES = options["OCL_KERNEL_SOURCES"];
+}
 
 //Load text file to string
 std::string load_file(std::string file_name)
@@ -37,32 +162,52 @@ std::string load_file(std::string file_name)
 #define WRITELN(i) std::cout << std::format("{} ",i) << std::endl;
 #define WRITE(i) std::cout << std::format("{} ",i)
 #define HEX(x) std::format("0x{:04X}", x)
+//Size in bytes of vector
+#define SIZEOF_VEC(V) V.size()*sizeof(decltype(V)::value_type)
 
-//Number of keys checked simultaneously.
-//Must be power of 2
-#define KEYS 65536
-#define ARRAY std::array<cl_ushort, KEYS>
 using QByteArray = std::array<cl_ushort, 4>;
-typedef cl_int CL_BUF[KEYS];
-//typedef CL
+
+//Print usage info
+void usage ()
+{
+    std::cout << "Usage:" << std::endl;
+    std::cout << "crypt_bf_ocl.exe [config_file.ini]" << std::endl;
+}
 
 int main(int argc, char *argv[])
 {
-    //constexpr auto keys_start = create_array<uint16_t, 4>();
-    //constexpr auto keys_end = create_array<uint16_t, 4, 1>();
+    //Catch Ctrl+C
+    std::signal(SIGINT, sigint_handler);
 
-    std::string kernel_source_filename = "crypt_bf.cl";
+    std::cout << std::format("FlashWrite ROM encryption bruteforce utility (OpenCL) v{}", VERSION) << std::endl;
+    std::string cfg_file = "crypt_bf_ocl.ini";
 
-    if (argc == 2)
+if (argc == 2 )
     {
-        kernel_source_filename = argv[1];
+        if (std::string(argv[1]) == "-h" or
+            std::string(argv[1]) == "--help")
+        {
+            usage();
+            exit(0);
+        }
+        else
+        {
+            cfg_file = argv[1];
+        }
     }
+    else if (argc > 2)
+    {
+        usage();
+        exit(1);
+    }
+
+    set_options(cfg_file);
+    std::string kernel_source_filename = OCL_KERNEL_SOURCES;
 
     try
     {
-        //ARRAY keys_start = {0x6587};
-        
-        std::array<QByteArray, KEYS> key_found = {0};
+        //Array of found keys
+        std::vector<QByteArray> key_found(GLOBAL_WI);
 
         cl_int err = CL_SUCCESS;
         std::vector<cl::Platform> platforms;
@@ -86,136 +231,137 @@ int main(int argc, char *argv[])
         devices[0].getInfo(CL_DEVICE_NAME, &name);
         std::cout << "Device name: " << name.c_str() << std::endl;
 
-        cl_uint maxWorkGroupSize;
-        devices[0].getInfo(CL_DEVICE_MAX_WORK_GROUP_SIZE, &maxWorkGroupSize);
+        /*I tested couple OpenCL 2.0 devices, these numbers are useless
+        //cl_uint maxWorkGroupSize=100;
+        std::vector<::size_t> maxWorkGroupSizes;
+        //devices[0].getInfo(CL_DEVICE_MAX_WORK_GROUP_SIZE, &maxWorkGroupSize);
+        maxWorkGroupSizes = devices[0].getInfo<CL_DEVICE_MAX_WORK_ITEM_SIZES>();
+        for (int i=0; i<maxWorkGroupSizes.size(); i++)
+        {
+            std::cout << std::format("Maximum workgroup size for dimension {}: {}", i, maxWorkGroupSizes[i]) << std::endl;
+        }
+        cl_uint maxWorkGroupSize = maxWorkGroupSizes[0];
         //std::cout << std::format("Maximum workgroup size: {}", maxWorkGroupSize) << std::endl;
+        */
 
+        //Build OpenCL from sorces
         std::string kernel_source = load_file(kernel_source_filename);
         cl::Program::Sources source(1,
             std::make_pair(kernel_source.c_str(), kernel_source.length()));
         cl::Program program_ = cl::Program(context, source);
-        program_.build(devices, "-I.");
-
-        /*
-        //Name MUST be the same as in .cl file
-        cl::Kernel kernel(program_, "try_key_0", &err);
-
-        cl::Buffer cl_buf_keys_start(context, CL_MEM_READ_ONLY, sizeof(keys_start));
-        cl::Buffer cl_buf_key_found  (context, CL_MEM_READ_ONLY, sizeof(key_found));
-        
-        cl::Event event;
-        cl::CommandQueue queue(context, devices[0], 0, &err);
-        queue.enqueueWriteBuffer(cl_buf_keys_start, CL_TRUE, 0, sizeof(keys_start), &keys_start);
-
-        kernel.setArg(0, cl_buf_keys_start);
-        kernel.setArg(1, cl_buf_key_found);
-        
-        int num_global = keys_start.size();
-        int num_local = 3;//keys_start.size();;
-        queue.enqueueNDRangeKernel(kernel,
-                                cl::NullRange,
-                                cl::NDRange(num_global),
-                                cl::NDRange(num_local),
-                                NULL,
-                                &event);
-        queue.enqueueReadBuffer(cl_buf_key_found, CL_TRUE, 0, sizeof(key_found), key_found.begin());
-        event.wait();
-        for (int i=0; i<KEYS; i++)
+        try
         {
-            bool all_words_are_zeroes = true;
-            std::string key_as_string = "";
-            for (int j=0; j<key_found.at(i).size(); j++)
+            program_.build(devices, "-I.");
+        }
+        catch (...)
+        {
+            for (cl::Device dev : devices)
             {
-                int key_word = key_found.at(i).at(j);
-                all_words_are_zeroes = all_words_are_zeroes && (key_word == 0);
-                key_as_string += HEX(key_word) + " ";
+                // Check the build status
+                cl_build_status status = program_.getBuildInfo<CL_PROGRAM_BUILD_STATUS>(dev);
+                if (status != CL_BUILD_ERROR)
+                    continue;
+
+                // Get the build log
+                std::string name     = dev.getInfo<CL_DEVICE_NAME>();
+                std::string buildlog = program_.getBuildInfo<CL_PROGRAM_BUILD_LOG>(dev);
+                std::cerr << "Build log for " << name << ":" << std::endl
+                            << buildlog << std::endl;
             }
-            if (!all_words_are_zeroes)
-            {
-                std::cout << "Host: Candidate key " << key_as_string << std::endl;
-            }
-            
-            next:
-            //WRITELN("===");
-        }*/
-        ARRAY   keys_0_start,
-                keys_1_start,
-                keys_1_end;
+        }
+
+        std::vector<cl_ushort> keys_0_start(GLOBAL_WI),
+                               keys_1_start(GLOBAL_WI),
+                               keys_1_end  (GLOBAL_WI);
 
         //Name MUST be the same as in .cl file
         cl::Kernel kernel(program_, "try_key_1", &err);
 
-        cl::Buffer cl_buf_keys_0_start(context, CL_MEM_READ_ONLY, sizeof(keys_0_start));
-        cl::Buffer cl_buf_keys_1_start(context, CL_MEM_READ_ONLY, sizeof(keys_1_start));
-        cl::Buffer cl_buf_keys_1_end  (context, CL_MEM_READ_ONLY, sizeof(keys_1_end));
-        cl::Buffer cl_buf_key_found  (context, CL_MEM_READ_ONLY, sizeof(key_found));
+        cl::Buffer cl_buf_keys_0_start(context, CL_MEM_READ_ONLY, SIZEOF_VEC(keys_0_start));
+        cl::Buffer cl_buf_keys_1_start(context, CL_MEM_READ_ONLY, SIZEOF_VEC(keys_1_start));
+        cl::Buffer cl_buf_keys_1_end  (context, CL_MEM_READ_ONLY, SIZEOF_VEC(keys_1_end));
+        cl::Buffer cl_buf_key_found   (context, CL_MEM_READ_WRITE,SIZEOF_VEC(key_found));
         
         cl::Event event;
         cl::CommandQueue queue(context, devices[0], 0, &err);
-        for (int k0=0x6587-9; k0<=0x6587; k0++)
+        for (int k0=START_K0; k0<=END_K0; k0++)
         { 
+            if (DEBUG_LEVEL > 0)
+            {
+                std::cout << std::format("Runnig for key 0x{:04X} 0x{:04X} 0x{:04X} 0x{:04X}",
+                                                            k0,0,0,0)
+                        << std::endl;
+            }
+            CURRENT_KEY = k0;
             //Fill K0
             for (int k0_i=0; k0_i<keys_0_start.size(); k0_i++)
             {
                 keys_0_start[k0_i] = k0;
             }
+            //Prepare work items
+            //Make several tasks, for example
+            //keys_1_start: 0x000 0x100 0x200 ...
+            //keys_1_end  : 0x0FF 0x1FF 0x2FF ...
+            //Number os such pairs is GLOBAL_WI - total number of work-items, 
             int k1_buckets = (MAX+1) / keys_1_start.size();
             int k1_bucket_size = keys_1_start.size();
-            WRITELN(HEX(k0));
-            //WRITELN(k1_bucket_size);
-            //WRITELN(k1_buckets);
-            //WRITELN("---");
-            //for (int k1=0; k1<=MAX; k1+=k1_bucket_size)
-            //for (int k1=0; k1<=MAX; k1+=k1_bucket_size)
-            //{
-                for (int k1_i=0; k1_i<k1_bucket_size; k1_i++)
-                {
-                    keys_1_start.at(k1_i) = k1_buckets*k1_i;
-                    keys_1_end  .at(k1_i) = k1_buckets*(k1_i+1) - 1;
-                    //WRITE(k0); WRITE(k1); WRITE(k1_i); WRITELN("");
-                    //WRITE(k0); WRITE(k1_i); WRITELN("");
-                    //WRITE(keys_1_start[k1_i]); WRITE(keys_1_end[k1_i]); WRITELN("");
-                }
-                //WRITELN("=");
-                //continue;
-                queue.enqueueWriteBuffer(cl_buf_keys_0_start, CL_TRUE, 0, sizeof(keys_0_start), &keys_0_start);
-                queue.enqueueWriteBuffer(cl_buf_keys_1_start, CL_TRUE, 0, sizeof(keys_1_start), &keys_1_start);
-                queue.enqueueWriteBuffer(cl_buf_keys_1_end,   CL_TRUE, 0, sizeof(keys_1_end),   &keys_1_end);
+            for (int k1_i=0; k1_i<k1_bucket_size; k1_i++)
+            {
+                keys_1_start.at(k1_i) = k1_buckets*k1_i;
+                keys_1_end  .at(k1_i) = k1_buckets*(k1_i+1) - 1;
+            }
+            queue.enqueueWriteBuffer(cl_buf_keys_0_start, CL_TRUE, 0, SIZEOF_VEC(keys_0_start), keys_0_start.data());
+            queue.enqueueWriteBuffer(cl_buf_keys_1_start, CL_TRUE, 0, SIZEOF_VEC(keys_1_start), keys_1_start.data());
+            queue.enqueueWriteBuffer(cl_buf_keys_1_end,   CL_TRUE, 0, SIZEOF_VEC(keys_1_end),   keys_1_end.data());
 
-                kernel.setArg(0, cl_buf_keys_0_start);
-                kernel.setArg(1, cl_buf_keys_1_start);
-                kernel.setArg(2, cl_buf_keys_1_end);
-                kernel.setArg(3, cl_buf_key_found);
-                
-                int num_global = k1_bucket_size;
-                int num_local = maxWorkGroupSize;//256;
-                queue.enqueueNDRangeKernel(kernel,
-                                        cl::NullRange,
-                                        cl::NDRange(num_global),
-                                        cl::NDRange(num_local),
-                                        NULL,
-                                        &event);
-                queue.enqueueReadBuffer(cl_buf_key_found, CL_TRUE, 0, sizeof(key_found), key_found.begin());
-                event.wait();
-                for (int i=0; i<key_found.size(); i++)
+            kernel.setArg(0, cl_buf_keys_0_start);
+            kernel.setArg(1, cl_buf_keys_1_start);
+            kernel.setArg(2, cl_buf_keys_1_end);
+            kernel.setArg(3, cl_buf_key_found);
+            
+            //Max work items
+            int num_global = GLOBAL_WI;
+            //Max work groups
+            int num_local = LOCAL_WG;
+            //Run
+            queue.enqueueNDRangeKernel(kernel,
+                                    cl::NullRange,
+                                    cl::NDRange(num_global),
+                                    cl::NDRange(num_local),
+                                    NULL,
+                                    &event);
+            //Zeroize all values on a device side!
+            queue.enqueueReadBuffer(cl_buf_key_found,
+                                    CL_TRUE,
+                                    0,
+                                    SIZEOF_VEC(key_found),
+                                    key_found.data());
+            event.wait();
+            //Check if something was found
+            for (int i=0; i<key_found.size(); i++)
+            {
+                bool all_words_are_zeroes = true;
+                std::string key_as_string = "";
+                for (int j=0; j<key_found.at(i).size(); j++)
                 {
-                    bool all_words_are_zeroes = true;
-                    std::string key_as_string = "";
-                    for (int j=0; j<key_found.at(i).size(); j++)
-                    {
-                        int key_word = key_found.at(i).at(j);
-                        all_words_are_zeroes = all_words_are_zeroes && (key_word == 0);
-                        key_as_string += HEX(key_word) + " ";
-                    }
-                    if (!all_words_are_zeroes)
-                    {
-                        std::cout << "Host: Candidate key " << key_as_string << std::endl;
-                    }
+                    int key_word = key_found.at(i).at(j);
+                    all_words_are_zeroes = all_words_are_zeroes && (key_word == 0);
+                    key_as_string += HEX(key_word) + " ";
                 }
-            //}//k1
+                if (!all_words_are_zeroes)
+                {
+                    std::cout << "Candidate key " << key_as_string << std::endl;
+                }
+            }
+            //Wait for key press and print current key
+            if (_kbhit())
+            {
+                print_current_key();
+                _getch();
+            }
         }//k0
     }//try
-    catch (cl::Error err)
+    catch (cl::Error &err)
     {
         std::cerr 
            << "ERROR: "
@@ -225,5 +371,6 @@ int main(int argc, char *argv[])
            << ")"
            << std::endl;
     }
+    print_current_key();
     return 0;
 }

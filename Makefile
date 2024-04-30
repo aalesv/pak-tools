@@ -1,4 +1,4 @@
-GCCROOT=D:\mingw32
+GCCROOT=D:\mingw64
 GCCBIN=$(GCCROOT)\bin
 CXX=$(GCCBIN)\g++.exe
 RM=del

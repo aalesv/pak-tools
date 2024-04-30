@@ -1,6 +1,6 @@
 # SSM FlashWrite PAK Tools
 
-Incomplete support. Can extract, decrypt, convert to encrypted binary without protected area. Don't flash any files produced with this scripts.
+This software made in educational purpose. Using in other purpose is prohibited. Don't flash any files produced by these scripts.
 
 ## Howto
 
@@ -43,3 +43,25 @@ ECU Denso key: `0x6E86 0xF513 0xCE22 0x7856`
 ECU Hitachi key: `0xF50E 0x973C 0x77F4 0x14CA`
 
 TCU Hitachi key: `0x6587 0x4492 0xa8b4 0x7bf2`
+
+## crypt-bf
+
+Single-threaded key bruteforcer
+
+## crypt-bf-mt
+
+Multithreaded key bruteforcer
+
+* `crypt-bf-mt.exe` binary
+
+* `crypt-bf-mt.ini` config file
+
+## crypt-bf-ocl
+
+* `crypt-bf-ocl.exe` runs on host
+
+* `crypt-bf-ocl.cl` is compiled by `crypt-bf-ocl.exe` and runs on OpenCL device (GPU)
+
+* `crypt-bf-ocl.ini` config file
+
+To build you'll need OCL SDK. Get it here https://github.com/GPUOpen-LibrariesAndSDKs/OCL-SDK
