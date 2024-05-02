@@ -5,18 +5,6 @@
 typedef uchar QByteArray[ARRAY_LEN];
 #define POS_KEY(i,j) 4 * i + j
 
-//Set this for bruteforce. 4 bytes give max speed but many false positives.
-//Clean unencrypted bytes
-__constant const QByteArray clean_buf = {0xff, 0xff, 0xff, 0xff};
-//Encrypted bytes
-__constant const QByteArray encr_buf = {0x68, 0xFC, 0x4E, 0x1C};
-
-//Set this to discard false positives
-//Clean unencrypted bytes
-__constant const QByteArray clean_test_buf = {0xFF, 0x00, 0x03, 0x00};
-//Encrypted bytes
-__constant const QByteArray encr_test_buf  = {0x85, 0x6F, 0x15, 0x7C};
-__constant const uchar mask_00_00_FF_FF[ARRAY_LEN] = {0x0, 0x0, 0xFF, 0xFF};
 
 //Return true if both arrays are indentical
 static inline int compare(const uchar *first, const uchar *second)
@@ -48,13 +36,6 @@ static inline int compare_mask( const uchar *first,
     }
     return res;
 }
-
-__constant const uchar index_transformation[]={
-    0x5, 0x6, 0x7, 0x1, 0x9, 0xC, 0xD, 0x8,
-    0xA, 0xD, 0x2, 0xB, 0xF, 0x4, 0x0, 0x3,
-    0xB, 0x4, 0x6, 0x0, 0xF, 0x2, 0xD, 0x9,
-    0x5, 0xC, 0x1, 0xA, 0x3, 0xD, 0xE, 0x8
-};
 
 //Encrypt and decrypt function. Reversed key is decrypt key.
 //[k0, k1, k2, k3] is encrypt key and [k3, k2, k1, k0] is decrypt key.
@@ -104,6 +85,13 @@ void subaru_denso_decrypt_32bit_payload(const uchar *buf,
                                         ushort *key_to_generate_index,
                                         uchar *decrypted)
 {
+	const uchar index_transformation[]={
+    0x5, 0x6, 0x7, 0x1, 0x9, 0xC, 0xD, 0x8,
+    0xA, 0xD, 0x2, 0xB, 0xF, 0x4, 0x0, 0x3,
+    0xB, 0x4, 0x6, 0x0, 0xF, 0x2, 0xD, 0x9,
+    0x5, 0xC, 0x1, 0xA, 0x3, 0xD, 0xE, 0x8
+};
+
     subaru_denso_calculate_32bit_payload(buf,
                                         key_to_generate_index,
                                         &index_transformation,
@@ -118,6 +106,19 @@ void subaru_denso_decrypt_32bit_payload(const uchar *buf,
 __kernel void try_key_0(__global const ushort *keys_start,
                     __global ushort *key_found)
 {
+  	//Set this for bruteforce. 4 bytes give max speed but many false positives.
+	//Clean unencrypted bytes
+	const QByteArray clean_buf = {0xff, 0xff, 0xff, 0xff};
+	//Encrypted bytes
+	const QByteArray encr_buf = {0x68, 0xFC, 0x4E, 0x1C};
+
+	//Set this to discard false positives
+	//Clean unencrypted bytes
+	const QByteArray clean_test_buf = {0xFF, 0x00, 0x03, 0x00};
+	//Encrypted bytes
+	const QByteArray encr_test_buf  = {0x85, 0x6F, 0x15, 0x7C};
+	const uchar mask_00_00_FF_FF[ARRAY_LEN] = {0x0, 0x0, 0xFF, 0xFF};
+
     uint index = get_global_id(0);
     ushort key0 = keys_start[index];
     //Zeroize all values. I assume no one will use key to 0 0 0 0
@@ -185,6 +186,19 @@ __kernel void try_key_1(__global const ushort *keys_0,
                     __global const ushort *keys_1_end,
                     __global ushort *key_found)
 {
+	//Set this for bruteforce. 4 bytes give max speed but many false positives.
+	//Clean unencrypted bytes
+	const QByteArray clean_buf = {0xff, 0xff, 0xff, 0xff};
+	//Encrypted bytes
+	const QByteArray encr_buf = {0x68, 0xFC, 0x4E, 0x1C};
+
+	//Set this to discard false positives
+	//Clean unencrypted bytes
+	const QByteArray clean_test_buf = {0xFF, 0x00, 0x03, 0x00};
+	//Encrypted bytes
+	const QByteArray encr_test_buf  = {0x85, 0x6F, 0x15, 0x7C};
+	const uchar mask_00_00_FF_FF[ARRAY_LEN] = {0x0, 0x0, 0xFF, 0xFF};
+
     uint index = get_global_id(0);
     ushort key_0        = keys_0[index];
     ushort key_1_start  = keys_1_start[index];
