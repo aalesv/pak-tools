@@ -50,7 +50,8 @@ int main( int argc, char* argv[])
     while (!inFile.eof())
     {
         inFile.read((char *)buffer.data(), buffer.size());
-        QByteArray r = subaru_denso_decrypt_32bit_payload(buffer, crypt_key);
+        QByteArray r;
+        subaru_denso_decrypt_32bit_payload(buffer, crypt_key, r);
         auto len = inFile.gcount();
         outFile.write((const char*)&r[0], len);
     }

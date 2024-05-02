@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
                     key_to_generate_index[1]=i1;
                     key_to_generate_index[2]=i2;
                     key_to_generate_index[3]=i3;
-                    r = subaru_denso_decrypt_32bit_payload(encr_buf, key_to_generate_index);
+                    subaru_denso_decrypt_32bit_payload(encr_buf, key_to_generate_index, r);
                     //Check if buffer is properly decrypted
                     if (compare(r, clean_buf))
                     {
@@ -152,12 +152,12 @@ int main(int argc, char *argv[])
                                                 key_to_generate_index[2],
                                                 key_to_generate_index[1],
                                                 key_to_generate_index[0]};
-                        r = subaru_denso_encrypt_32bit_payload(clean_buf, encr_key);
+                        subaru_denso_encrypt_32bit_payload(clean_buf, encr_key, r);
                         //Check if buffer is properly encrypted
                         if (compare(r, encr_buf))
                         {
                             //Finally, check if this key can decrypt other data
-                            r = subaru_denso_decrypt_32bit_payload(encr_test_buf, key_to_generate_index);
+                            subaru_denso_decrypt_32bit_payload(encr_test_buf, key_to_generate_index, r);
                             if (compare(r, clean_test_buf))
                             {
                                 std::cout

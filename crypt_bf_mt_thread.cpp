@@ -53,12 +53,13 @@ static void bf_thread_worker(int key0)
             key_to_generate_index[1]=i1;
             key_to_generate_index[2]=i2;
             key_to_generate_index[3]=0;
-            QByteArray r = subaru_denso_decrypt_32bit_payload(encr_buf, key_to_generate_index);
+            QByteArray r;
+            subaru_denso_decrypt_32bit_payload(encr_buf, key_to_generate_index, r);
             //Check if buffer is partially decrypted
             if (compare(r, clean_buf, mask_00_00_FF_FF))
             {
                 //Check if other data can be partially decrypted
-                r = subaru_denso_decrypt_32bit_payload(encr_test_buf, key_to_generate_index);
+                subaru_denso_decrypt_32bit_payload(encr_test_buf, key_to_generate_index, r);
                 if (compare(r, clean_test_buf, mask_00_00_FF_FF))
                 {
                     if (DEBUG_LEVEL > 2)
@@ -75,12 +76,20 @@ static void bf_thread_worker(int key0)
                     FOR (i3)
                     {
                         key_to_generate_index[3] = i3;
-                        r = subaru_denso_decrypt_32bit_payload(encr_buf, key_to_generate_index);
+                        bool b;
+                        b = subaru_denso_decrypt_32bit_payload(encr_buf, key_to_generate_index, r, clean_buf);
+                        /*uint16_t reverse_key_to_generate_index[4];
+                        std::reverse_copy(std::begin(key_to_generate_index),
+                                        std::end(key_to_generate_index),
+                                        reverse_key_to_generate_index);
+                        b = subaru_denso_encrypt_32bit_payload(clean_buf, reverse_key_to_generate_index, r, encr_buf);
+                        */
                         //Check if buffer is properly decrypted
-                        if (compare(r, clean_buf))
+                        //if (b and compare(r, encr_buf))
+                        if (b and compare(r, clean_buf))
                         {
                             //Finally, check if this key can decrypt other data
-                            r = subaru_denso_decrypt_32bit_payload(encr_test_buf, key_to_generate_index);
+                            subaru_denso_decrypt_32bit_payload(encr_test_buf, key_to_generate_index, r);
                             if (compare(r, clean_test_buf))
                             {
                                 std::scoped_lock lock(g_print_lock);
