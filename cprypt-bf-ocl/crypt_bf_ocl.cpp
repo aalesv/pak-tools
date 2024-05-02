@@ -67,7 +67,8 @@ static cl_uint  GLOBAL_WI,
                 LOCAL_WG;
 static int DEBUG_LEVEL=0;
 //OpenCL kernel sources file name
-static std::string OCL_KERNEL_SOURCES;
+static std::string OCL_KERNEL_SOURCES,
+                OCL_KERNEL_NAME;
 
 //Parse config file
 std::map<std::string, std::string> parse_cfg(std::istream & cfgfile)
@@ -143,6 +144,7 @@ void set_options(std::string &cfgfile)
     CONFIG_STOI(LOCAL_WG);
     CONFIG_STOI(DEBUG_LEVEL);
     OCL_KERNEL_SOURCES = options["OCL_KERNEL_SOURCES"];
+    OCL_KERNEL_NAME = options["OCL_KERNEL_NAME"];
 }
 
 //Load text file to string
@@ -203,6 +205,7 @@ if (argc == 2 )
 
     set_options(cfg_file);
     std::string kernel_source_filename = OCL_KERNEL_SOURCES;
+    std::string kernel_name = OCL_KERNEL_NAME;
 
     std::cout << std::format("Start key: {} {} {} {}",
                     HEX(START_K0),
@@ -264,7 +267,7 @@ if (argc == 2 )
         cl::Program program_ = cl::Program(context, source);
         try
         {
-            program_.build(devices, "-I.");
+            program_.build(devices, "-I. -O3");
         }
         catch (...)
         {
@@ -287,13 +290,15 @@ if (argc == 2 )
                                keys_1_start(GLOBAL_WI),
                                keys_1_end  (GLOBAL_WI);
 
+        std::cout << "Kernel name: " << kernel_name.c_str() << std::endl;
         //Name MUST be the same as in .cl file
-        cl::Kernel kernel(program_, "try_key_1", &err);
+        //cl::Kernel kernel(program_, "try_key_1", &err);
+        cl::Kernel kernel(program_, kernel_name.c_str(), &err);
 
         cl::Buffer cl_buf_keys_0_start(context, CL_MEM_READ_ONLY, SIZEOF_VEC(keys_0_start));
         cl::Buffer cl_buf_keys_1_start(context, CL_MEM_READ_ONLY, SIZEOF_VEC(keys_1_start));
         cl::Buffer cl_buf_keys_1_end  (context, CL_MEM_READ_ONLY, SIZEOF_VEC(keys_1_end));
-        cl::Buffer cl_buf_key_found   (context, CL_MEM_READ_WRITE,SIZEOF_VEC(key_found));
+        cl::Buffer cl_buf_key_found   (context, CL_MEM_WRITE_ONLY,SIZEOF_VEC(key_found));
         
         cl::Event event;
         cl::CommandQueue queue(context, devices[0], 0, &err);
@@ -344,6 +349,7 @@ if (argc == 2 )
                                     NULL,
                                     &event);
             //Zeroize all values on a device side!
+			//queue.finish();
             queue.enqueueReadBuffer(cl_buf_key_found,
                                     CL_TRUE,
                                     0,
