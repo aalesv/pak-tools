@@ -86,15 +86,15 @@ if pak_stream.read('uintle:32') != 0x101:
 if UNPACK and not os.path.exists(pak_dir):
     os.makedirs(pak_dir)
 
-#Unknown structure
-unk_struct_len = pak_stream.read('uintle:16')
+#CSV file
+csv_len = pak_stream.read('uintle:16')
 
 if UNPACK:
     header_file_name = rf'{pak_dir}\{HEADER_FILE_NAME}'
     print(f'Saving header to {header_file_name}\n')
-    save_file(pak_file_name, int(pak_stream.bitpos/8), unk_struct_len, header_file_name)
+    save_file(pak_file_name, int(pak_stream.bitpos/8), csv_len, header_file_name)
 
-pak_stream.bitpos += unk_struct_len*8
+pak_stream.bitpos += csv_len*8
 #Number of files?
 num_files = pak_stream.read('uintle:16')
 print (f'{pak_file_name} contains {num_files} file(s)')
@@ -130,8 +130,7 @@ while not last_struct:
             p = get_byte_pos(pak_stream) - 8
             print(f'Unexpected header at {p}, exiting.')
             exit(1)
-        #8 bytes at the end
-        file_len = read_length(pak_stream) - 8
+        file_len = read_length(pak_stream)
         print(f' Found {file_name} at {get_byte_pos(pak_stream)}, length {hex(file_len)}')
         if UNPACK:
             out_filename = rf'{pak_dir}\{file_name}'
@@ -141,8 +140,6 @@ while not last_struct:
             print(f'  Writing to {out_filename}')
         #Move to the end of file
         pak_stream.bitpos += file_len * 8
-        #Checksum or something
-        pak_stream.bitpos += 8 * 8
         #Check if there's another file, header '01 80'
         #It looks like last file marked with '{num_files} 80'
         try:
