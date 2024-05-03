@@ -24,7 +24,8 @@ static QByteArray CLEAN_BUF;
 static QByteArray ENCR_TEST_BUF;
 static QByteArray CLEAN_TEST_BUF;
 static constexpr QByteArray mask_00_00_FF_FF = {0x0, 0x0, 0xFF, 0xFF};
-static int DEBUG_LEVEL;
+static int DEBUG_LEVEL,
+        OPTIMIZATION_LEVEL;
 
 //Thread worker
 //Checks keys of the following type K0 ???? ???? 0
@@ -54,9 +55,18 @@ static void bf_thread_worker(int key0)
             key_to_generate_index[2]=i2;
             key_to_generate_index[3]=0;
             QByteArray r;
-            subaru_denso_decrypt_32bit_payload(encr_buf, key_to_generate_index, r);
+            bool b;
+            if (OPTIMIZATION_LEVEL > 0)
+            {
+                b = subaru_denso_decrypt_32bit_payload(encr_buf, key_to_generate_index, r, clean_buf);
+            }
+            else
+            {
+                b = subaru_denso_decrypt_32bit_payload(encr_buf, key_to_generate_index, r);
+            }
+            //subaru_denso_decrypt_32bit_payload(encr_buf, key_to_generate_index, r);
             //Check if buffer is partially decrypted
-            if (compare(r, clean_buf, mask_00_00_FF_FF))
+            if (b and compare(r, clean_buf, mask_00_00_FF_FF))
             {
                 //Check if other data can be partially decrypted
                 subaru_denso_decrypt_32bit_payload(encr_test_buf, key_to_generate_index, r);
@@ -76,17 +86,9 @@ static void bf_thread_worker(int key0)
                     FOR (i3)
                     {
                         key_to_generate_index[3] = i3;
-                        bool b;
-                        b = subaru_denso_decrypt_32bit_payload(encr_buf, key_to_generate_index, r, clean_buf);
-                        /*uint16_t reverse_key_to_generate_index[4];
-                        std::reverse_copy(std::begin(key_to_generate_index),
-                                        std::end(key_to_generate_index),
-                                        reverse_key_to_generate_index);
-                        b = subaru_denso_encrypt_32bit_payload(clean_buf, reverse_key_to_generate_index, r, encr_buf);
-                        */
+                        subaru_denso_decrypt_32bit_payload(encr_buf, key_to_generate_index, r);                            
                         //Check if buffer is properly decrypted
-                        //if (b and compare(r, encr_buf))
-                        if (b and compare(r, clean_buf))
+                        if (compare(r, clean_buf))
                         {
                             //Finally, check if this key can decrypt other data
                             subaru_denso_decrypt_32bit_payload(encr_test_buf, key_to_generate_index, r);
@@ -190,6 +192,7 @@ static void bf_thread_pool(int thread_count, int start_k0, int end_k0)
 void start_bf_thread_pool(ThreadInit init)
 {
     DEBUG_LEVEL = init.debug_level;
+    OPTIMIZATION_LEVEL = init.optimization_level;
     ENCR_BUF = init.encr_buf;
     CLEAN_BUF = init.clean_buf;
     ENCR_TEST_BUF = init.encr_test_buf;

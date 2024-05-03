@@ -28,8 +28,9 @@ static std::string cfg_file = "crypt_bf_mt.ini";
 
 //Options
 // 0 to autodetect
-static int THREAD_COUNT;
-static int DEBUG_LEVEL;
+static int THREAD_COUNT,
+        DEBUG_LEVEL,
+        OPTIMIZATION_LEVEL;
 //Start key high word
 static uint16_t START_K0 = 0,
                 //End key high word
@@ -147,6 +148,7 @@ void set_options(std::string &cfgfile)
     CONFIG_STOI(ENCR_TEST_BUF_K2);
     CONFIG_STOI(ENCR_TEST_BUF_K3);
     CONFIG_STOI(DEBUG_LEVEL);
+    CONFIG_STOI(OPTIMIZATION_LEVEL);
     CLEAN_BUF[0] = CLEAN_BUF_K0;
     CLEAN_BUF[1] = CLEAN_BUF_K1;
     CLEAN_BUF[2] = CLEAN_BUF_K2;
@@ -234,6 +236,7 @@ int main(int argc, char *argv[])
     init.start_k0 = START_K0;
     init.end_k0 = END_K0;
     init.debug_level = DEBUG_LEVEL;
+    init.optimization_level = OPTIMIZATION_LEVEL;
     init.encr_buf = ENCR_BUF;
     init.clean_buf = CLEAN_BUF;
     init.encr_test_buf = ENCR_TEST_BUF;

@@ -5,6 +5,7 @@ typedef struct
     int start_k0;
     int end_k0;
     int debug_level;
+    int optimization_level;
     QByteArray encr_buf;
     QByteArray clean_buf;
     QByteArray encr_test_buf;
