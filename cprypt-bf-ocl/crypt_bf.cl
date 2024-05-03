@@ -114,7 +114,7 @@ bool subaru_denso_calculate_32bit_payload_optimized(const uchar *buf,
 
             if (ki == 2)
             {
-                if(!((decoded_data % 2) ^ ((encryption_key >> 3) % 2)))
+                if(!((decoded_data & 1) ^ ((encryption_key >> 3) & 1)))
                 {
                     return false;
                 }
@@ -384,11 +384,12 @@ __kernel void try_key_1_optimized(__global const ushort *keys_0,
             key_to_generate_index[1]=i1;
             key_to_generate_index[2]=i2;
             key_to_generate_index[3]=0;
-            subaru_denso_decrypt_32bit_payload(&encr_buf,
+            bool b = subaru_denso_decrypt_32bit_payload_optimized(&encr_buf,
                                             &key_to_generate_index,
-                                            decrypted);
+                                            decrypted,
+                                            &clean_buf);
             //Check if buffer is partially decrypted
-            if (compare_mask(decrypted, &clean_buf, &mask_00_00_FF_FF))
+            if (b && compare_mask(decrypted, &clean_buf, &mask_00_00_FF_FF))
             {
                 //Check if other data can be partially decrypted
                 subaru_denso_decrypt_32bit_payload(&encr_test_buf,
@@ -399,12 +400,11 @@ __kernel void try_key_1_optimized(__global const ushort *keys_0,
                     FOR (i3)
                     {
                         key_to_generate_index[3] = i3;
-                        bool b = subaru_denso_decrypt_32bit_payload_optimized(&encr_buf,
+                        subaru_denso_decrypt_32bit_payload(&encr_buf,
                                                 &key_to_generate_index,
-                                                decrypted,
-                                                &clean_buf);
+                                                decrypted);
                         //Check if buffer is properly decrypted
-                        if (b && compare(decrypted, &clean_buf))
+                        if (compare(decrypted, &clean_buf))
                         {
                             subaru_denso_decrypt_32bit_payload(&encr_test_buf,
                                                     &key_to_generate_index,

@@ -267,7 +267,7 @@ if (argc == 2 )
         cl::Program program_ = cl::Program(context, source);
         try
         {
-            program_.build(devices, "-I. -O3");
+            program_.build(devices, "-I. -O5 -cl-unsafe-math-optimizations -cl-fast-relaxed-math");
         }
         catch (...)
         {
@@ -328,9 +328,9 @@ if (argc == 2 )
                 keys_1_start.at(k1_i) = k1_buckets*k1_i;
                 keys_1_end  .at(k1_i) = k1_buckets*(k1_i+1) - 1;
             }
-            queue.enqueueWriteBuffer(cl_buf_keys_0_start, CL_TRUE, 0, SIZEOF_VEC(keys_0_start), keys_0_start.data());
-            queue.enqueueWriteBuffer(cl_buf_keys_1_start, CL_TRUE, 0, SIZEOF_VEC(keys_1_start), keys_1_start.data());
-            queue.enqueueWriteBuffer(cl_buf_keys_1_end,   CL_TRUE, 0, SIZEOF_VEC(keys_1_end),   keys_1_end.data());
+            queue.enqueueWriteBuffer(cl_buf_keys_0_start, CL_FALSE, 0, SIZEOF_VEC(keys_0_start), keys_0_start.data());
+            queue.enqueueWriteBuffer(cl_buf_keys_1_start, CL_FALSE, 0, SIZEOF_VEC(keys_1_start), keys_1_start.data());
+            queue.enqueueWriteBuffer(cl_buf_keys_1_end,   CL_FALSE, 0, SIZEOF_VEC(keys_1_end),   keys_1_end.data());
 
             kernel.setArg(0, cl_buf_keys_0_start);
             kernel.setArg(1, cl_buf_keys_1_start);
@@ -349,9 +349,8 @@ if (argc == 2 )
                                     NULL,
                                     &event);
             //Zeroize all values on a device side!
-			//queue.finish();
             queue.enqueueReadBuffer(cl_buf_key_found,
-                                    CL_TRUE,
+                                    CL_FALSE,
                                     0,
                                     SIZEOF_VEC(key_found),
                                     key_found.data());
