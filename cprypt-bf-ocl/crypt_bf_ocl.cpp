@@ -35,6 +35,8 @@ int _stoi(std::string s)
 }
 
 int CURRENT_KEY;
+//Set this to true to gracefully terminate process
+bool STOP_PROCESS_NOW = false;
 #define HEX(x) std::format("0x{:04X}", x)
 
 //Print current key.
@@ -49,8 +51,10 @@ void print_current_key()
 //SIGINT handler
 void sigint_handler(int param)
 {
-    print_current_key();
-    exit(1);
+    //print_current_key();
+    STOP_PROCESS_NOW = true;
+    std::cout << "Terminating, one moment please..." << std::endl;
+    //exit(1);
 }
 
 //Options
@@ -321,8 +325,8 @@ if (argc == 2 )
             //keys_1_start: 0x000 0x100 0x200 ...
             //keys_1_end  : 0x0FF 0x1FF 0x2FF ...
             //Number os such pairs is GLOBAL_WI - total number of work-items, 
-            int k1_buckets = (MAX+1) / keys_1_start.size();
             int k1_bucket_size = keys_1_start.size();
+            int k1_buckets = (MAX+1) / k1_bucket_size;
             for (int k1_i=0; k1_i<k1_bucket_size; k1_i++)
             {
                 keys_1_start.at(k1_i) = k1_buckets*k1_i;
@@ -376,6 +380,10 @@ if (argc == 2 )
             {
                 print_current_key();
                 _getch();
+            }
+            if (STOP_PROCESS_NOW)
+            {
+                break;
             }
         }//k0
     }//try
