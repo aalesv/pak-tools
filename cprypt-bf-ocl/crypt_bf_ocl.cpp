@@ -21,8 +21,11 @@
 #include <map>
 #include <conio.h>
 #include <csignal>
+#include <algorithm>
 #include "crypt_bf_ocl.h"
 
+#define DEBUG_PRINT_HEX(VAR) printf(#VAR "=0x%.04x\n", VAR)
+#define DEBUG_PRINT(VAR) printf(#VAR "=%d\n", VAR)
 const char *VERSION = "2024.0430";
 
 //Convert from string to integer
@@ -227,7 +230,9 @@ if (argc == 2 )
     try
     {
         //Array of found keys
-        std::vector<QByteArray> key_found(GLOBAL_WI);
+        //std::vector<QByteArray> keys_found(GLOBAL_WI);
+        std::vector<QByteArray> keys_found;
+        keys_found.reserve(GLOBAL_WI);
 
         cl_int err = CL_SUCCESS;
         std::vector<cl::Platform> platforms;
@@ -290,19 +295,24 @@ if (argc == 2 )
             }
         }
 
-        std::vector<cl_ushort> keys_0_start(GLOBAL_WI),
+        /*std::vector<cl_ushort> keys_0_start(GLOBAL_WI),
                                keys_1_start(GLOBAL_WI),
-                               keys_1_end  (GLOBAL_WI);
+                               keys_1_end  (GLOBAL_WI);*/
+        std::vector<cl_ushort> keys_0_start,
+                               keys_1_start,
+                               keys_1_end;
+        keys_0_start.reserve(GLOBAL_WI);
+        keys_1_start.reserve(GLOBAL_WI);
+        keys_1_end.reserve(GLOBAL_WI);
 
         std::cout << "Kernel name: " << kernel_name.c_str() << std::endl;
         //Name MUST be the same as in .cl file
-        //cl::Kernel kernel(program_, "try_key_1", &err);
         cl::Kernel kernel(program_, kernel_name.c_str(), &err);
 
-        cl::Buffer cl_buf_keys_0_start(context, CL_MEM_READ_ONLY, SIZEOF_VEC(keys_0_start));
+        /*cl::Buffer cl_buf_keys_0_start(context, CL_MEM_READ_ONLY, SIZEOF_VEC(keys_0_start));
         cl::Buffer cl_buf_keys_1_start(context, CL_MEM_READ_ONLY, SIZEOF_VEC(keys_1_start));
         cl::Buffer cl_buf_keys_1_end  (context, CL_MEM_READ_ONLY, SIZEOF_VEC(keys_1_end));
-        cl::Buffer cl_buf_key_found   (context, CL_MEM_WRITE_ONLY,SIZEOF_VEC(key_found));
+        cl::Buffer cl_buf_keys_found   (context, CL_MEM_WRITE_ONLY,SIZEOF_VEC(keys_found));*/
         
         cl::Event event;
         cl::CommandQueue queue(context, devices[0], 0, &err);
@@ -315,23 +325,63 @@ if (argc == 2 )
                         << std::endl;
             }
             CURRENT_KEY = k0;
-            //Fill K0
-            for (int k0_i=0; k0_i<keys_0_start.size(); k0_i++)
+            int keys_left = END_K0 - k0 + 1;
+            //Vector size
+            int vector_elements = std::min(keys_left*(MAX+1), int(GLOBAL_WI));
+            //How many key0 we send during this iteration
+            int keys0_send = std::min(keys_left, vector_elements / (MAX+1));
+            //If number of elements in vector is small, we still send 1 key0
+            if (keys0_send == 0)
             {
-                keys_0_start[k0_i] = k0;
+                keys0_send = 1;
             }
+            //Resize vectors to fit all elements at once
+            keys_0_start.resize(vector_elements);
+            keys_1_start.resize(vector_elements);
+            keys_1_end.resize(vector_elements);
+            keys_found.resize(vector_elements);
+            
             //Prepare work items
             //Make several tasks, for example
-            //keys_1_start: 0x000 0x100 0x200 ...
-            //keys_1_end  : 0x0FF 0x1FF 0x2FF ...
-            //Number os such pairs is GLOBAL_WI - total number of work-items, 
-            int k1_bucket_size = keys_1_start.size();
-            int k1_buckets = (MAX+1) / k1_bucket_size;
-            for (int k1_i=0; k1_i<k1_bucket_size; k1_i++)
+            //keys_0_start: 0x0000 0x0000 0x0000 ... 0x0000 0x0001 ...
+            //keys_1_start: 0x0000 0x1000 0x2000 ... 0xF000 0x0000 ...
+            //keys_1_end  : 0x0FFF 0x1FFF 0x2FFF ... 0xFFFF 0x0FFF ...
+            //Number os such pairs should equal to total number of work-items,
+            //that can run simutaneously on OpenCL device          
+            //We can run more than 65536 work-items,
+            //prepeare for this
+            for (int k0_i=0; k0_i<keys0_send; k0_i++)
             {
-                keys_1_start.at(k1_i) = k1_buckets*k1_i;
-                keys_1_end  .at(k1_i) = k1_buckets*(k1_i+1) - 1;
-            }
+                //If we cannot run all key1 values at once, divide the work
+                int bucket_size = std::min(MAX + 1, int( keys_1_start.size() ));
+                //How many work-items we can run at once
+                int number_of_buckets = (MAX+1) / bucket_size;
+
+                //Fill key0 vector
+                //First put k0 how much is needed times, then k0+1 etc.
+                for (int k0_j=0; k0_j<bucket_size; k0_j++)
+                {
+                    keys_0_start[k0_j + k0_i*bucket_size] = k0+k0_i;
+                }
+                //Fill key1 start and end vectors
+                for (int k1_i=0; k1_i<bucket_size; k1_i++)
+                {
+                    keys_1_start.at(k1_i + k0_i*bucket_size) = number_of_buckets*k1_i;
+                    keys_1_end  .at(k1_i + k0_i*bucket_size) = number_of_buckets*(k1_i+1) - 1;
+                }
+            }//k0_i
+            //We submitted several keys - increase counter
+            k0 += keys0_send - 1;
+
+            cl_int key_was_found = 0;
+
+            //We don’t know in advance size of data, it can change at least at last iteration
+            cl::Buffer cl_buf_keys_0_start(context, CL_MEM_READ_ONLY, SIZEOF_VEC(keys_0_start));
+            cl::Buffer cl_buf_keys_1_start(context, CL_MEM_READ_ONLY, SIZEOF_VEC(keys_1_start));
+            cl::Buffer cl_buf_keys_1_end  (context, CL_MEM_READ_ONLY, SIZEOF_VEC(keys_1_end));
+            cl::Buffer cl_buf_keys_found  (context, CL_MEM_WRITE_ONLY,SIZEOF_VEC(keys_found));
+            cl::Buffer cl_buf_is_key_found(context, CL_MEM_WRITE_ONLY,sizeof(key_was_found));
+
             queue.enqueueWriteBuffer(cl_buf_keys_0_start, CL_FALSE, 0, SIZEOF_VEC(keys_0_start), keys_0_start.data());
             queue.enqueueWriteBuffer(cl_buf_keys_1_start, CL_FALSE, 0, SIZEOF_VEC(keys_1_start), keys_1_start.data());
             queue.enqueueWriteBuffer(cl_buf_keys_1_end,   CL_FALSE, 0, SIZEOF_VEC(keys_1_end),   keys_1_end.data());
@@ -339,7 +389,8 @@ if (argc == 2 )
             kernel.setArg(0, cl_buf_keys_0_start);
             kernel.setArg(1, cl_buf_keys_1_start);
             kernel.setArg(2, cl_buf_keys_1_end);
-            kernel.setArg(3, cl_buf_key_found);
+            kernel.setArg(3, cl_buf_keys_found);
+            kernel.setArg(4, cl_buf_is_key_found);
             
             //Max work items
             int num_global = GLOBAL_WI;
@@ -353,26 +404,34 @@ if (argc == 2 )
                                     NULL,
                                     &event);
             //Zeroize all values on a device side!
-            queue.enqueueReadBuffer(cl_buf_key_found,
+            queue.enqueueReadBuffer(cl_buf_keys_found,
                                     CL_FALSE,
                                     0,
-                                    SIZEOF_VEC(key_found),
-                                    key_found.data());
+                                    SIZEOF_VEC(keys_found),
+                                    keys_found.data());
+            queue.enqueueReadBuffer(cl_buf_is_key_found,
+                                    CL_FALSE,
+                                    0,
+                                    sizeof(key_was_found),
+                                    &key_was_found);
             event.wait();
             //Check if something was found
-            for (int i=0; i<key_found.size(); i++)
+            if (key_was_found)
             {
-                bool all_words_are_zeroes = true;
-                std::string key_as_string = "";
-                for (int j=0; j<key_found.at(i).size(); j++)
+                for (int i=0; i<keys_found.size(); i++)
                 {
-                    int key_word = key_found.at(i).at(j);
-                    all_words_are_zeroes = all_words_are_zeroes && (key_word == 0);
-                    key_as_string += HEX(key_word) + " ";
-                }
-                if (!all_words_are_zeroes)
-                {
-                    std::cout << "Candidate key " << key_as_string << std::endl;
+                    bool all_words_are_zeroes = true;
+                    std::string key_as_string = "";
+                    for (int j=0; j<keys_found.at(i).size(); j++)
+                    {
+                        int key_word = keys_found.at(i).at(j);
+                        all_words_are_zeroes = all_words_are_zeroes && (key_word == 0);
+                        key_as_string += HEX(key_word) + " ";
+                    }
+                    if (!all_words_are_zeroes)
+                    {
+                        std::cout << "Candidate key " << key_as_string << std::endl;
+                    }
                 }
             }
             //Wait for key press and print current key
