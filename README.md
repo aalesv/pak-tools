@@ -44,7 +44,7 @@ ECU Hitachi key: `0xF50E 0x973C 0x77F4 0x14CA`
 
 TCU Hitachi key: `0x6587 0x4492 0xa8b4 0x7bf2`
 
-WA12212970WWW key: '0x7c03 0x9312 0x2962 0x78f1'
+WA12212970WWW key: `0x7c03 0x9312 0x2962 0x78f1`
 
 ## crypt-bf
 
@@ -67,3 +67,11 @@ Multithreaded key bruteforcer
 * `crypt-bf-ocl.ini` config file
 
 To build you'll need OCL SDK. Get it here https://github.com/GPUOpen-LibrariesAndSDKs/OCL-SDK
+
+## educated guess
+
+A bruteforcer that uses values from a decrypted bin file to guess keys on an encrypted bin file
+
+* `python educated_guess.py <decrypted_file> <encrypted_file>`
+
+* `sample: python educated_guess.py 4244307006.bin D86T2U07.bin`
