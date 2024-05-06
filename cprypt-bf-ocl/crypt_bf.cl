@@ -314,7 +314,7 @@ __kernel void try_key_1(__global const ushort *keys_0,
     //Only one process should do it
     if (index == 0)
     {
-        key_was_found = 0;
+        *key_was_found = 0;
     }
     QByteArray decrypted = {0, 0, 0, 0};
     for (int i1=key_1_start;i1<=key_1_end;i1++)
@@ -353,6 +353,7 @@ __kernel void try_key_1(__global const ushort *keys_0,
                             {
                                 //printf("Candidate key ");
                                 //PRINT_KEY(key_to_generate_index);
+                                *key_was_found = 1;
                                 keys_found[POS_KEY(index, 0)]=key_to_generate_index[0];
                                 keys_found[POS_KEY(index, 1)]=key_to_generate_index[1];
                                 keys_found[POS_KEY(index, 2)]=key_to_generate_index[2];
@@ -405,7 +406,7 @@ __kernel void try_key_1_optimized(__global const ushort *keys_0,
     //Only one process should do it
     if (index == 0)
     {
-        key_was_found = 0;
+        *key_was_found = 0;
     }
     QByteArray decrypted = {0, 0, 0, 0};
     for (__private int i1=key_1_start;i1<=key_1_end;i1++)
@@ -499,7 +500,7 @@ __kernel void try_key_1_order_optimized(__global const ushort *keys_1,
     //Only one process should do it
     if (index == 0)
     {
-        key_was_found = 0;
+        *key_was_found = 0;
     }
     QByteArray decrypted = {0, 0, 0, 0};
     //FOR(i2)
