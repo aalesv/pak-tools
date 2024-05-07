@@ -26,7 +26,7 @@
 
 #define DEBUG_PRINT_HEX(VAR) printf(#VAR "=0x%.04x\n", VAR)
 #define DEBUG_PRINT(VAR) printf(#VAR "=%d\n", VAR)
-const char *VERSION = "2024.0430";
+const char *VERSION = "2024.0507";
 
 //Convert from string to integer
 //If string starts with '0x', assume hex, else - dec

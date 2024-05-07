@@ -10,7 +10,7 @@
 #include <iostream>
 #include <format>
 
-const char *VERSION = "2024.0430";
+const char *VERSION = "2024.0507";
 
 int main(int argc, char *argv[])
 {
