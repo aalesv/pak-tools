@@ -78,6 +78,8 @@ static int DEBUG_LEVEL=0;
 //OpenCL kernel sources file name
 static std::string OCL_KERNEL_SOURCES,
                 OCL_KERNEL_NAME;
+static int OCL_PLATFORM=0;
+static int OCL_DEVICE=0;
 
 //Parse config file
 std::map<std::string, std::string> parse_cfg(std::istream & cfgfile)
@@ -152,6 +154,8 @@ void set_options(std::string &cfgfile)
     CONFIG_STOI(GLOBAL_WI);
     CONFIG_STOI(LOCAL_WG);
     CONFIG_STOI(DEBUG_LEVEL);
+    CONFIG_STOI(OCL_PLATFORM);
+    CONFIG_STOI(OCL_DEVICE);
     OCL_KERNEL_SOURCES = options["OCL_KERNEL_SOURCES"];
     OCL_KERNEL_NAME = options["OCL_KERNEL_NAME"];
 }
@@ -244,19 +248,27 @@ if (argc == 2 )
             return -1;
         }
 
-        std::string platformInfo;
-        platforms[0].getInfo(CL_PLATFORM_VERSION, &platformInfo);
-        std::cout << "Platform Info: " << platformInfo.c_str() << std::endl;
+        std::string platformVersion,
+                    platformName;
+        platforms[OCL_PLATFORM].getInfo(CL_PLATFORM_VERSION, &platformVersion);
+        platforms[OCL_PLATFORM].getInfo(CL_PLATFORM_NAME, &platformName);
+        std::cout << "Platform Info: "
+                << platformName
+                << " "
+                << platformVersion.c_str() 
+                << std::endl;
 
         cl_context_properties properties[] = 
-            { CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[0])(), 0};
+            { CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[OCL_PLATFORM])(), 0};
         cl::Context context(CL_DEVICE_TYPE_DEFAULT, properties);
 
-        std::vector<cl::Device> devices = context.getInfo<CL_CONTEXT_DEVICES>();
+        std::vector<cl::Device> devices_ = context.getInfo<CL_CONTEXT_DEVICES>();
 
         std::string name;
-        devices[0].getInfo(CL_DEVICE_NAME, &name);
+        devices_[OCL_DEVICE].getInfo(CL_DEVICE_NAME, &name);
         std::cout << "Device name: " << name.c_str() << std::endl;
+        std::vector<cl::Device> devices;
+        devices.push_back(devices_[OCL_DEVICE]);
 
         /*I tested couple OpenCL 2.0 devices, these numbers are useless
         //cl_uint maxWorkGroupSize=100;
@@ -317,7 +329,7 @@ if (argc == 2 )
         cl::Buffer cl_buf_keys_found   (context, CL_MEM_WRITE_ONLY,SIZEOF_VEC(keys_found));*/
         
         cl::Event event;
-        cl::CommandQueue queue(context, devices[0], 0, &err);
+        cl::CommandQueue queue(context, devices[OCL_DEVICE], 0, &err);
         for (int k0=START_K0; k0<=END_K0; k0++)
         { 
             CURRENT_KEY_0 = k0;
@@ -354,6 +366,7 @@ if (argc == 2 )
             //that can run simutaneously on OpenCL device          
             //We can run more or less than 65536 work-items,
             //prepeare for this
+            //Be careful with those loops - the algorithm turned out to be quite confusing
             for (int k0_i=0; k0_i<keys0_send; k0_i++)
             {
                 //If we cannot run all key1 values at once, divide the work
@@ -366,13 +379,6 @@ if (argc == 2 )
                 for (int k1_i=0; k1_i<number_of_buckets; k1_i++)
                 {
                     CURRENT_KEY_1 = k1_i * bucket_size;
-                    //If we process more than 1 key0 at once, print info on every key only once at end of loop
-                    if (DEBUG_LEVEL > 0 and keys0_send == (k0_i + 1))
-                    {
-                        std::cout << std::format("Runnig for key 0x{:04X} 0x{:04X} 0x{:04X} 0x{:04X}",
-                                                                    k0,CURRENT_KEY_1,0,0)
-                                << std::endl;
-                    }
                     
                     //Fill key0 vector
                     //First put k0 how much is needed times, then k0+1 etc.
@@ -393,6 +399,14 @@ if (argc == 2 )
                     //If we process more than 1 key0 at once, submit job only once at end of loop
                     if (keys0_send == (k0_i + 1))
                     {
+                        //If we process more than 1 key0 at once, print info on every key only once at end of loop
+                        if (DEBUG_LEVEL > 0)
+                        {
+                            std::cout << std::format("Runnig for key 0x{:04X} 0x{:04X} 0x{:04X} 0x{:04X}",
+                                                                        k0,CURRENT_KEY_1,0,0)
+                                    << std::endl;
+                        }
+
                         cl_int key_was_found = 0;
 
                         //We don’t know in advance size of data, it can change at least at last iteration
@@ -462,7 +476,8 @@ if (argc == 2 )
                         }
                         if (STOP_PROCESS_NOW)
                         {
-                            break;
+                            //break;
+                            goto exit;
                         }
                     }
                 }//k1_i
@@ -481,6 +496,7 @@ if (argc == 2 )
            << ")"
            << std::endl;
     }
+    exit:
     print_current_key();
     return 0;
 }
