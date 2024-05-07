@@ -17,8 +17,6 @@ GPU_SETTINGS_DETECT_EXECUTABLE=gpu-settings-detect.exe
 
 ALL_EXECUTABLE=$(CRYPT_BF_OCL_EXECUTABLE) \
 				$(GPU_SETTINGS_DETECT_EXECUTABLE) \
-				devices.exe \
-				platforms.exe \
 				info.exe
 
 rebuild: clean all
@@ -28,12 +26,6 @@ $(CRYPT_BF_OCL_EXECUTABLE): $(CRYPT_BF_OCL_SOURCES)
 
 $(GPU_SETTINGS_DETECT_EXECUTABLE): $(GPU_SETTINGS_DETECT_SOURCES)
 	$(CXX) $(GPU_SETTINGS_DETECT_SOURCES) $(CCFLAGS) $(INCLUDEDIR) $(LDFLAGS) -o $@
-
-devices.exe: devices.c
-	$(CXX) $< $(CCFLAGS) $(INCLUDEDIR) $(LDFLAGS) -o $@
-
-platforms.exe: platforms.c
-	$(CXX) $< $(CCFLAGS) $(INCLUDEDIR) $(LDFLAGS) -o $@
 
 info.exe: info.c
 	$(CXX) $< $(CCFLAGS) $(INCLUDEDIR) $(LDFLAGS) -o $@

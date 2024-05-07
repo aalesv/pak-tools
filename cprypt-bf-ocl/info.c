@@ -27,7 +27,7 @@ int print_platform_devices(cl_platform_id platform)
 
     // for each device print critical attributes
     for (int j = 0; j < deviceCount; j++) {
-
+        int item_number = 1;
         // print device name
         char* value;
         size_t valueSize;
@@ -43,7 +43,7 @@ int print_platform_devices(cl_platform_id platform)
         value = (char*) malloc(valueSize);
         CHECK_MALLOC(value);
         clGetDeviceInfo(devices[j], CL_DEVICE_VERSION, valueSize, value, NULL);
-        printf("  %d.%d Hardware version: %s\n", j+1, 1, value);
+        printf("  %d.%d Hardware version: %s\n", j+1, item_number++, value);
         free(value);
 
         // print software driver version
@@ -51,7 +51,7 @@ int print_platform_devices(cl_platform_id platform)
         value = (char*) malloc(valueSize);
         CHECK_MALLOC(value);
         clGetDeviceInfo(devices[j], CL_DRIVER_VERSION, valueSize, value, NULL);
-        printf("  %d.%d Software version: %s\n", j+1, 2, value);
+        printf("  %d.%d Software version: %s\n", j+1, item_number++, value);
         free(value);
 
         // print c version supported by compiler for device
@@ -59,26 +59,28 @@ int print_platform_devices(cl_platform_id platform)
         value = (char*) malloc(valueSize);
         CHECK_MALLOC(value);
         clGetDeviceInfo(devices[j], CL_DEVICE_OPENCL_C_VERSION, valueSize, value, NULL);
-        printf("  %d.%d OpenCL C version: %s\n", j+1, 3, value);
+        printf("  %d.%d OpenCL C version: %s\n", j+1, item_number++, value);
         free(value);
 
         // print parallel compute units
         cl_uint maxComputeUnits;
         clGetDeviceInfo(devices[j], CL_DEVICE_MAX_COMPUTE_UNITS,
         sizeof(maxComputeUnits), &maxComputeUnits, NULL);
-        printf("  %d.%d Parallel compute units: %d\n", j+1, 4, maxComputeUnits);
+        printf("  %d.%d Parallel compute units: %d\n", j+1, item_number++, maxComputeUnits);
 
         // print maximum number of work-items per compute unit
         cl_uint maxWorkGroupSize;
         clGetDeviceInfo(devices[j], CL_DEVICE_MAX_WORK_GROUP_SIZE,
         sizeof(maxWorkGroupSize), &maxWorkGroupSize, NULL);
-        printf("  %d.%d Maximum workgroup size: %d\n", j+1, 5, maxWorkGroupSize);
+        printf("  %d.%d Maximum workgroup size: %d\n", j+1, item_number++, maxWorkGroupSize);
         
         // print preferred work-group size
         cl_uint preferredWorkGroupSize;
         clGetDeviceInfo(devices[j], CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
         sizeof(preferredWorkGroupSize), &preferredWorkGroupSize, NULL);
-        printf("  %d.%d Preferred workgroup size: %d\n", j+1, 6, preferredWorkGroupSize);
+        printf("  %d.%d Preferred workgroup size: %d\n", j+1, item_number++, preferredWorkGroupSize);
+        
+        printf("  %d.%d Device system number: %d\n", j+1, item_number++, j);
     }
     free(devices);
     return 0;
@@ -126,6 +128,8 @@ int main() {
             free(info);
 
         }
+        printf(" %d.%d Platform system number: %d\n", i+1, j+1, i);
+
         print_platform_devices(platforms[i]);
 
         printf("========================================\n");

@@ -12,9 +12,20 @@
 
 const char *VERSION = "2024.0430";
 
-int main()
+int main(int argc, char *argv[])
 {
+
     std::cout << std::format("GPU parameters autodetect v{}", VERSION) << std::endl;
+    std::cout << "Usage: gpu-settings-detect.exe [platform_number device_number]" << std::endl;
+
+    int platform_number=0,
+        device_number=0;
+    
+    if (argc == 3)
+    {
+        platform_number = std::stoi(argv[1]);
+        device_number   = std::stoi(argv[2]);
+    }
 
     std::string kernel_source = "__kernel void do_nothing(){}";
 
@@ -27,18 +38,20 @@ int main()
     }
 
     std::string platformInfo;
-    platforms[0].getInfo(CL_PLATFORM_VERSION, &platformInfo);
+    platforms[platform_number].getInfo(CL_PLATFORM_VERSION, &platformInfo);
     std::cout << "Platform Info: " << platformInfo.c_str() << std::endl;
 
     cl_context_properties properties[] = 
-        { CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[0])(), 0};
+        { CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[platform_number])(), 0};
     cl::Context context(CL_DEVICE_TYPE_DEFAULT, properties);
 
-    std::vector<cl::Device> devices = context.getInfo<CL_CONTEXT_DEVICES>();
+    std::vector<cl::Device> devices_ = context.getInfo<CL_CONTEXT_DEVICES>();
 
     std::string name;
-    devices[0].getInfo(CL_DEVICE_NAME, &name);
+    devices_[device_number].getInfo(CL_DEVICE_NAME, &name);
     std::cout << "Device name: " << name.c_str() << std::endl;
+    std::vector<cl::Device> devices;
+    devices.push_back(devices_[device_number]);
 
     cl::Program::Sources source(1,
         std::make_pair(kernel_source.c_str(), kernel_source.length()));
@@ -47,15 +60,23 @@ int main()
     {
         program_.build(devices);
     }
-    catch (...)
+    catch (cl::Error &err)
     {
         for (cl::Device dev : devices)
         {
             // Check the build status
             cl_build_status status = program_.getBuildInfo<CL_PROGRAM_BUILD_STATUS>(dev);
             if (status != CL_BUILD_ERROR)
+            {
+                std::cerr 
+                << "ERROR: "
+                << err.what()
+                << "("
+                << err.err()
+                << ")"
+                << std::endl;
                 continue;
-
+            }
             // Get the build log
             std::string name     = dev.getInfo<CL_DEVICE_NAME>();
             std::string buildlog = program_.getBuildInfo<CL_PROGRAM_BUILD_LOG>(dev);
@@ -65,7 +86,7 @@ int main()
     }
     cl::Kernel kernel(program_, "do_nothing", &err);
     cl::Event event;
-    cl::CommandQueue queue(context, devices[0], 0, &err);
+    cl::CommandQueue queue(context, devices[device_number], 0, &err);
     
     constexpr int MIN = 1,
                   MAX = 0x10000;
