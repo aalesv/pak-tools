@@ -80,6 +80,12 @@ int print_platform_devices(cl_platform_id platform)
         sizeof(preferredWorkGroupSize), &preferredWorkGroupSize, NULL);
         printf("  %d.%d Preferred workgroup size: %d\n", j+1, item_number++, preferredWorkGroupSize);
         
+        // print number of device queues
+        cl_uint numOfDeviceQueues;
+        clGetDeviceInfo(devices[j], CL_DEVICE_MAX_ON_DEVICE_QUEUES,
+        sizeof(numOfDeviceQueues), &numOfDeviceQueues, NULL);
+        printf("  %d.%d Maximum number of device queues: %d\n", j+1, item_number++, numOfDeviceQueues);
+        
         printf("  %d.%d Device system number: %d\n", j+1, item_number++, j);
     }
     free(devices);

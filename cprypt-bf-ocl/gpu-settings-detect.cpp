@@ -10,7 +10,7 @@
 #include <iostream>
 #include <format>
 
-const char *VERSION = "2024.0507";
+const char *VERSION = "2024.0508";
 
 int main(int argc, char *argv[])
 {
@@ -51,6 +51,7 @@ int main(int argc, char *argv[])
     devices_[device_number].getInfo(CL_DEVICE_NAME, &name);
     std::cout << "Device name: " << name.c_str() << std::endl;
     std::vector<cl::Device> devices;
+    //Pushing only 1 device. It will have index 0
     devices.push_back(devices_[device_number]);
 
     cl::Program::Sources source(1,
@@ -86,7 +87,8 @@ int main(int argc, char *argv[])
     }
     cl::Kernel kernel(program_, "do_nothing", &err);
     cl::Event event;
-    cl::CommandQueue queue(context, devices[device_number], 0, &err);
+    //We have only 1 device with index 0
+    cl::CommandQueue queue(context, devices[0], 0, &err);
     
     constexpr int MIN = 1,
                   MAX = 0x10000;

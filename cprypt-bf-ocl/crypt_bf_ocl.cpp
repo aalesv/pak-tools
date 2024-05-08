@@ -26,7 +26,7 @@
 
 #define DEBUG_PRINT_HEX(VAR) printf(#VAR "=0x%.04x\n", VAR)
 #define DEBUG_PRINT(VAR) printf(#VAR "=%d\n", VAR)
-const char *VERSION = "2024.0507";
+const char *VERSION = "2024.0508";
 
 //Convert from string to integer
 //If string starts with '0x', assume hex, else - dec
@@ -268,6 +268,7 @@ if (argc == 2 )
         devices_[OCL_DEVICE].getInfo(CL_DEVICE_NAME, &name);
         std::cout << "Device name: " << name.c_str() << std::endl;
         std::vector<cl::Device> devices;
+        //Pushing only 1 device. It will have index 0
         devices.push_back(devices_[OCL_DEVICE]);
 
         /*I tested couple OpenCL 2.0 devices, these numbers are useless
@@ -329,7 +330,8 @@ if (argc == 2 )
         cl::Buffer cl_buf_keys_found   (context, CL_MEM_WRITE_ONLY,SIZEOF_VEC(keys_found));*/
         
         cl::Event event;
-        cl::CommandQueue queue(context, devices[OCL_DEVICE], 0, &err);
+        //We have only 1 device with index 0
+        cl::CommandQueue queue(context, devices[0], 0, &err);
         for (int k0=START_K0; k0<=END_K0; k0++)
         { 
             CURRENT_KEY_0 = k0;
