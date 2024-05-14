@@ -26,7 +26,7 @@
 
 #define DEBUG_PRINT_HEX(VAR) printf(#VAR "=0x%.04x\n", VAR)
 #define DEBUG_PRINT(VAR) printf(#VAR "=%d\n", VAR)
-const char *VERSION = "2024.0508";
+const char *VERSION = "2024.0514";
 
 //Convert from string to integer
 //If string starts with '0x', assume hex, else - dec
@@ -56,10 +56,8 @@ void print_current_key()
 //SIGINT handler
 void sigint_handler(int param)
 {
-    //print_current_key();
     STOP_PROCESS_NOW = true;
     std::cout << "Terminating, one moment please..." << std::endl;
-    //exit(1);
 }
 
 //Options
@@ -236,7 +234,6 @@ if (argc == 2 )
     try
     {
         //Array of found keys
-        //std::vector<QByteArray> keys_found(GLOBAL_WI);
         std::vector<QByteArray> keys_found;
         keys_found.reserve(GLOBAL_WI);
 
@@ -310,9 +307,6 @@ if (argc == 2 )
             }
         }
 
-        /*std::vector<cl_ushort> keys_0_start(GLOBAL_WI),
-                               keys_1_start(GLOBAL_WI),
-                               keys_1_end  (GLOBAL_WI);*/
         std::vector<cl_ushort> keys_0_start,
                                keys_1_start,
                                keys_1_end;
@@ -324,11 +318,6 @@ if (argc == 2 )
         //Name MUST be the same as in .cl file
         cl::Kernel kernel(program_, kernel_name.c_str(), &err);
 
-        /*cl::Buffer cl_buf_keys_0_start(context, CL_MEM_READ_ONLY, SIZEOF_VEC(keys_0_start));
-        cl::Buffer cl_buf_keys_1_start(context, CL_MEM_READ_ONLY, SIZEOF_VEC(keys_1_start));
-        cl::Buffer cl_buf_keys_1_end  (context, CL_MEM_READ_ONLY, SIZEOF_VEC(keys_1_end));
-        cl::Buffer cl_buf_keys_found   (context, CL_MEM_WRITE_ONLY,SIZEOF_VEC(keys_found));*/
-        
         cl::Event event;
         //We have only 1 device with index 0
         cl::CommandQueue queue(context, devices[0], 0, &err);
@@ -476,9 +465,9 @@ if (argc == 2 )
                             print_current_key();
                             _getch();
                         }
+                        //SIGINT handler must set this flag
                         if (STOP_PROCESS_NOW)
                         {
-                            //break;
                             goto exit;
                         }
                     }
