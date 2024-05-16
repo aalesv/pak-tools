@@ -11,7 +11,10 @@ This file uses a decrypted bin file to search for keys and tests against an encr
 """
 
 import sys
+import argparse
 from collections import Counter
+
+VERSION = 2024.0516
 
 def find_most_common_sequences(file_path, sequence_length=4, num_results=2):
     sequences_counter = Counter()
@@ -81,6 +84,16 @@ def subaru_denso_calculate_32bit_payload(buf, key_to_generate_index):
     
     return encrypted
     
+def key_to_hex_string(key):
+    """
+    Convert key to human readable format
+    """
+    key0 = hex((key & 0xFFFF000000000000) >> 48)
+    key1 = hex((key & 0x0000FFFF00000000) >> 32)
+    key2 = hex((key & 0x00000000FFFF0000) >> 16)
+    key3 = hex(key & 0x000000000000FFFF)
+    return f'{key0} {key1} {key2} {key3}'
+
 def find_keys_sequences(file1_path, ffff_value, ecu_type,sequence_length=8):
     matching_sequences = []
 
@@ -105,7 +118,7 @@ def find_keys_sequences(file1_path, ffff_value, ecu_type,sequence_length=8):
             file1.seek(-sequence_length, 1)  # Move file1's pointer back to start of current sequence
             ret_val = int.from_bytes(subaru_denso_calculate_32bit_payload(ffff_value, sequence1))
             if ret_val == 0xffffffff :
-                print("0xffffffff value found with key ",hex(int.from_bytes(sequence1))," at ",hex(file1.tell()))
+                print("0xffffffff value found with key ",key_to_hex_string(int.from_bytes(sequence1))," at ",hex(file1.tell()))
                 return
             file1.seek(1, 1)  # Slide window of sequence1 by 1 byte
             sequence1 = file1.read(sequence_length)
@@ -128,12 +141,40 @@ def find_keys_sequences(file1_path, ffff_value, ecu_type,sequence_length=8):
                 sequence1=byte_temp;
 
 
-if len(sys.argv) != 3:
-    print("Usage: educated_guess.py <decrypted_file_path> <encrypted_file_path>")
-    sys.exit(1)
+parser = argparse.ArgumentParser(
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    description='Uses a decrypted bin file to search for keys and tests against an encryted bin file'
+)
+parserGroupOptions = parser.add_argument(
+    '-d', '--decrypted',
+    metavar='<filename>',
+    help='Decrypted filename',
+    required=True
+)
+parserGroupOptions = parser.add_argument(
+    '-e', '--encrypted',
+    metavar='<filename>',
+    help='Encrypted filename',
+    required=True
+)
+parserGroupOptions = parser.add_argument(
+    '-t', '--type',
+    choices=['auto', 'denso', 'hitachi'],
+    metavar='<ROM type>',
+    help='ROM type',
+    default='auto'
+)
+parserGroupOptions = parser.add_argument('--version',
+                                         action='version',
+                                         help='Print version number',
+                                         version=f'{VERSION}'
+)
 
-decrypted_file_path = sys.argv[1]
-encrypted_file_path = sys.argv[2]
+args = parser.parse_args()
+
+decrypted_file_path = args.decrypted
+encrypted_file_path = args.encrypted
+rom_type = args.type
 
 ffff_encrypted=0xFFFFFFFF;
 zero_encrypted=0x00000000;
@@ -150,11 +191,15 @@ for sequence, count in most_common_sequences_encrypted:
 ffff_encrypted=most_common_sequences_encrypted[0][0]
 zero_encrypted=most_common_sequences_encrypted[1][0]
 
+#Detect ROM type if needed
 denso_flag = 0
-search_text = "DENSO"
-find_text_in_binary_file(decrypted_file_path,"search_text")
-for index in find_text_in_binary_file(decrypted_file_path, search_text):
-    print(f"Found '{search_text}' at index {index} in the file. Setting ECU Type.")
+if rom_type == 'auto':
+    search_text = "DENSO"
+    find_text_in_binary_file(decrypted_file_path,"search_text")
+    for index in find_text_in_binary_file(decrypted_file_path, search_text):
+        print(f"Found '{search_text}' at index {index} in the file. Setting ECU Type.")
+        denso_flag = 1
+elif rom_type == 'denso':
     denso_flag = 1
 
 find_keys_sequences(decrypted_file_path, ffff_encrypted,denso_flag)

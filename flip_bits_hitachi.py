@@ -1,4 +1,8 @@
 import sys
+import argparse
+
+VERSION = 2024.0516
+
 
 def flip_bits(byte):
     """
@@ -28,12 +32,32 @@ def process_file(input_path, output_path):
         print(f"An error occurred: {e}")
 
 def main():
-    if len(sys.argv) != 3:
-        print("Usage: python script.py <input_file> <output_file>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        description='Flip bits for Hitachi ECU'
+    )
+    parserGroupOptions = parser.add_argument(
+        '-i', '--input',
+        metavar='<filename>',
+        help='Input filename',
+        required=True
+    )
+    parserGroupOptions = parser.add_argument(
+        '-o', '--output',
+        metavar='<filename>',
+        help='Output filename',
+        required=True
+    )
+    parserGroupOptions = parser.add_argument('--version',
+                                            action='version',
+                                            help='Print version number',
+                                            version=f'{VERSION}'
+    )
 
-    input_file_path = sys.argv[1]
-    output_file_path = sys.argv[2]
+    args = parser.parse_args()
+
+    input_file_path = args.input
+    output_file_path = args.output
     process_file(input_file_path, output_file_path)
 
 if __name__ == "__main__":

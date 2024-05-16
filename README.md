@@ -48,6 +48,16 @@ TCU Hitachi key: `0x6587 0x4492 0xa8b4 0x7bf2`
 
 TCU Hitachi key (MY03): `0x3e27 0xb291 0x6640 0x1336`
 
+If none of above keys matched, you can try to guess or bruteforce the key with the following tools. Also development branch of [FastECU](https://github.com/rimwall/fastecu-oem/tree/development) forked by rimwall has another very fast tool to guess a key (you'll need both encrypted and decrypted files).
+
+## educated_guess
+
+A bruteforcer that uses values from a decrypted bin file to guess keys on an encrypted bin file. Note that you'll need both encrypted and decrypted files for this script to work.
+
+* `python educated_guess.py -d <decrypted_file> -e <encrypted_file>`
+
+* Sample: `python educated_guess.py -d 4244307006.bin -e D86T2U07.bin`
+
 ## crypt-bf
 
 Single-threaded key bruteforcer
@@ -62,6 +72,8 @@ Multithreaded key bruteforcer
 
 ## crypt-bf-ocl
 
+OpenCL bruteforcer
+
 * `crypt-bf-ocl.exe` runs on host
 
 * `crypt-bf-ocl.cl` is compiled by `crypt-bf-ocl.exe` and runs on OpenCL device (GPU)
@@ -69,11 +81,3 @@ Multithreaded key bruteforcer
 * `crypt-bf-ocl.ini` config file
 
 To build you'll need OCL SDK. Get it here https://github.com/GPUOpen-LibrariesAndSDKs/OCL-SDK
-
-## educated guess
-
-A bruteforcer that uses values from a decrypted bin file to guess keys on an encrypted bin file
-
-* `python educated_guess.py <decrypted_file> <encrypted_file>`
-
-* `sample: python educated_guess.py 4244307006.bin D86T2U07.bin`
