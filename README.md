@@ -50,6 +50,8 @@ TCU Hitachi key (MY03): `0x3e27 0xb291 0x6640 0x1336`
 
 If none of above keys matched, you can try to guess or bruteforce the key with the following tools. Also development branch of [FastECU](https://github.com/rimwall/fastecu-oem/tree/development) forked by rimwall has another very fast tool to guess a key (you'll need both encrypted and decrypted files).
 
+Note that old ROMs and kernels use simple encryption, so please use `flip_bits_denso_ecu.py`, `flip_bits_denso_kernel.py`, `flip_bits_hitachi.py`
+
 ## educated_guess
 
 A bruteforcer that uses values from a decrypted bin file to guess keys on an encrypted bin file. Note that you'll need both encrypted and decrypted files for this script to work.
